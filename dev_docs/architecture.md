@@ -58,6 +58,7 @@ frontend/src/
     projects.ts
     papers.ts
     canvas.ts
+    relations.ts
     export.ts
   pages/
     GraphPage.tsx
@@ -66,6 +67,9 @@ frontend/src/
     graph/
       PaperNode.tsx
       CreateNodeDialog.tsx
+      EditNodeDialog.tsx
+      DeleteNodeDialog.tsx
+      RelationLabelsDialog.tsx
     papers/
       PaperMetadataForm.tsx
       MarkdownEditor.tsx
@@ -77,6 +81,7 @@ frontend/src/
   types/
     paper.ts
     graph.ts
+    relation.ts
   main.tsx
   styles.css
 ```
@@ -87,6 +92,8 @@ Key frontend responsibilities:
   - loads default project and graph data;
   - owns React Flow node state;
   - owns `expandedNodeId` for node expansion;
+  - manages local node search and graph viewport focusing;
+  - opens node edit/delete and relation-label dialogs;
   - saves node positions after dragging;
   - routes to paper detail pages on double-click.
 - `PaperNode`
@@ -95,6 +102,7 @@ Key frontend responsibilities:
 - `PaperEditorPage`
   - loads paper detail;
   - edits metadata;
+  - generates a collapsible H1/H2/H3 outline from Markdown;
   - hosts direct Vditor WYSIWYG editing.
 - Shared feedback components
   - `NoticeBanner` handles non-blocking success/info messages and auto-dismisses;
@@ -115,6 +123,7 @@ backend/app/
     projects.py
     papers.py
     canvas.py
+    relations.py
     export.py
   core/
     config.py
@@ -124,10 +133,12 @@ backend/app/
     project.py
     paper.py
     canvas.py
+    relation.py
   schemas/
     project.py
     paper.py
     canvas.py
+    relation.py
   repositories/
     projects.py
     papers.py
@@ -135,7 +146,9 @@ backend/app/
   services/
     paper_service.py
     canvas_service.py
+    relation_service.py
     export_service.py
+    serialization.py
   exporters/
     markdown_exporter.py
 ```
@@ -148,12 +161,16 @@ backend/app/
   - create paper node
   - drag node
   - click node to expand metadata
+  - search and locate paper nodes
+  - edit node metadata and incoming relations
+  - configure relation labels
   - double-click node to edit paper
   - export project Markdown
 
 /papers/:paperId/edit
   PaperEditorPage
   - edit title and metadata
+  - browse the generated outline
   - edit Markdown through Vditor WYSIWYG
   - save paper
   - export single Markdown
@@ -171,26 +188,42 @@ Current strategy:
 - Build output copies Vditor runtime to `dist/vditor/dist/*`.
 - The app does not depend on public CDN access.
 
-## Docker Development Mode
+## Docker Compose Runtime
 
-`docker-compose.yml` runs frontend in Vite dev mode:
+`docker-compose.yml` builds two services:
 
 ```text
-./frontend:/app
-/app/node_modules
+backend   FastAPI service on the internal Docker network
+frontend  nginx service that serves the built frontend and proxies API calls
 ```
 
-Because `/app/node_modules` is an anonymous volume, frontend starts with:
+The frontend image is built by `frontend/Dockerfile`:
+
+```text
+node:22-slim builder -> npm ci -> npm run build
+nginx:1.27-alpine  -> serve /usr/share/nginx/html
+```
+
+Runtime routing:
+
+- `/` and app routes are served by nginx with SPA fallback to `index.html`.
+- `/api/` is proxied to `http://backend:8000/api/`.
+- `/health` is proxied to `http://backend:8000/health`.
+- `/vditor/` is served from the built frontend assets.
+
+Local source development still uses separate commands:
 
 ```bash
-npm install && npm run dev -- --host 0.0.0.0 --port 3000
-```
+cd backend
+python main.py
 
-This keeps container dependencies in sync when `package.json` changes.
+cd frontend
+npm run dev
+```
 
 ## Design System
 
-Frontend styling follows [design-system.md](./design-system.md).
+Frontend styling follows [agent_skills/design-system.md](./agent_skills/design-system.md), with [design-system.md](./design-system.md) kept as a compatibility entry point.
 
 Important constraints:
 

@@ -32,7 +32,7 @@ export function ConfirmDialog({
               <AlertTriangle size={18} />
             </span>
             <div>
-              <span className="eyebrow">Confirm</span>
+              <span className="eyebrow">确认操作</span>
               <h2 id="confirm-dialog-title">{title}</h2>
             </div>
           </div>

@@ -130,12 +130,12 @@
 状态：已完成。
 
 目标：
-- 支持按 title、authors、venue、tags、status 查找节点。
+- 支持按 title、tags、status、TLDR 查找节点。
 - 点击搜索结果后定位并展开目标节点。
 
 范围：
 - 在图谱概览面板内提供本地节点搜索。
-- 搜索当前 graph 数据中的 title、authors、venue、tags、status。
+- 搜索当前 graph 数据中的 title、tags、status、TLDR。
 - 点击搜索结果后展开目标节点，并通过 React Flow 移动画布视图到节点附近。
 - 当前不新增后端搜索 API；数据量变大后再考虑。
 

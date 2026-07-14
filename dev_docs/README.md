@@ -5,7 +5,7 @@
 当前版本目标是一个本地最小可用闭环：
 
 ```text
-图谱节点创建 -> 节点展开查看 metadata -> 独立论文编辑 -> SQLite 存储 -> Markdown 导出
+图谱节点创建 -> 节点 metadata/关系编辑 -> 独立论文编辑 -> SQLite 存储 -> Markdown 导出
 ```
 
 ## 文档结构
@@ -14,7 +14,8 @@
 - [data-model.md](./data-model.md)：数据库表设计和字段说明。
 - [api.md](./api.md)：后端 REST API 设计。
 - [frontend.md](./frontend.md)：前端页面、交互、状态和编辑器实现。
-- [design-system.md](./design-system.md)：前端视觉和交互设计规范。
+- [design-system.md](./design-system.md)：前端视觉和交互设计规范入口。
+- [agent_skills/design-system.md](./agent_skills/design-system.md)：给开发代理使用的详细前端设计系统。
 - [frontend-change-log.md](./frontend-change-log.md)：前端重要变更记录。
 - [implementation-status.md](./implementation-status.md)：当前实现清单、运行方式和已知边界。
 - [tasks.md](./tasks.md)：已完成里程碑和后续开发计划。
@@ -39,7 +40,7 @@
 
 ## 前端设计约定
 
-前端视觉和交互以 [design-system.md](./design-system.md) 为准。
+前端视觉和交互以 [agent_skills/design-system.md](./agent_skills/design-system.md) 为详细准则，[design-system.md](./design-system.md) 保留为兼容入口。
 
 关键约定：
 

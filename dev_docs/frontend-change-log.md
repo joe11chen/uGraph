@@ -2,6 +2,40 @@
 
 This document records stable frontend decisions that affect future development. Do not record temporary styling tweaks, bug-fix back-and-forth, or discarded UI experiments here.
 
+## Simplified Metadata And TLDR
+
+Status: completed.
+
+Stable changes:
+
+- Metadata editing now focuses on `status`, `tags`, and `tldr`.
+- Author, venue, and year are no longer first-class UI fields; authors, venues, and topics should be entered as tags.
+- Existing legacy `authors`, `venue`, and `year` values are merged into the visible tag input when editing, then removed from metadata on save.
+- Graph node expansion shows TLDR and tags instead of separate author/year/venue rows.
+- Graph search matches title, tags, status, TLDR, and legacy author/venue values for compatibility.
+
+Primary files:
+
+```text
+frontend/src/features/graph/CreateNodeDialog.tsx
+frontend/src/features/graph/EditNodeDialog.tsx
+frontend/src/features/graph/PaperNode.tsx
+frontend/src/features/papers/PaperMetadataForm.tsx
+frontend/src/pages/GraphPage.tsx
+frontend/src/types/paper.ts
+backend/app/exporters/markdown_exporter.py
+```
+
+Validation:
+
+```bash
+cd frontend
+npm run build
+
+cd backend
+python -m compileall app
+```
+
 ## Paper Editor Outline Sidebar
 
 Status: completed.
@@ -86,7 +120,7 @@ Status: completed.
 Stable changes:
 
 - Added local graph search in the graph overview panel.
-- Search matches paper title, authors, venue, tags, and status from the current graph payload.
+- Search originally matched paper title, authors, venue, tags, and status from the current graph payload; current metadata search is documented in "Simplified Metadata And TLDR".
 - Clicking a search result expands the target node and moves the React Flow viewport to it.
 - This first version does not add a backend search API.
 

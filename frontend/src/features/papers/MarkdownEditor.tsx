@@ -219,7 +219,7 @@ export const MarkdownEditor = forwardRef<MarkdownEditorHandle, EditorProps>(func
         className="markdown-fallback-editor"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        aria-label="Markdown fallback editor"
+        aria-label="备用笔记编辑器"
       />
     );
   }

@@ -22,8 +22,8 @@ export function DeleteNodeDialog({ open, title, isDeleting, onCancel, onConfirm 
               <AlertTriangle size={18} />
             </span>
             <div>
-              <span className="eyebrow">Delete Node</span>
-              <h2 id="delete-node-title">删除论文节点</h2>
+              <span className="eyebrow">删除文献</span>
+              <h2 id="delete-node-title">确认删除</h2>
             </div>
           </div>
           <button type="button" className="icon-button" onClick={onCancel} aria-label="关闭">
@@ -31,7 +31,7 @@ export function DeleteNodeDialog({ open, title, isDeleting, onCancel, onConfirm 
           </button>
         </div>
         <p className="delete-dialog-copy">
-          确认删除“<strong>{title}</strong>”？该论文笔记和画布节点都会被删除。
+          确认删除“<strong>{title}</strong>”？相关笔记和关系也会一并移除。
         </p>
         <div className="dialog-actions">
           <button type="button" onClick={onCancel}>
@@ -39,7 +39,7 @@ export function DeleteNodeDialog({ open, title, isDeleting, onCancel, onConfirm 
           </button>
           <button type="button" className="danger-primary" onClick={onConfirm} disabled={isDeleting}>
             <Trash2 size={17} />
-            {isDeleting ? "删除中" : "删除节点"}
+            {isDeleting ? "删除中" : "删除文献"}
           </button>
         </div>
       </section>

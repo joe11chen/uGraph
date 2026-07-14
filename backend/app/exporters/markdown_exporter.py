@@ -12,8 +12,17 @@ def slugify(value: str) -> str:
     return value or "paper"
 
 
+def export_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
+    hidden_keys = {"authors", "year", "venue", "nodeColor", "nodeShape"}
+    return {
+        key: value
+        for key, value in metadata.items()
+        if key not in hidden_keys and value not in (None, "", [], {})
+    }
+
+
 def paper_markdown(paper_id: str, title: str, metadata: dict[str, Any], content: str) -> str:
-    frontmatter = {"id": paper_id, "title": title, **metadata}
+    frontmatter = {"id": paper_id, "title": title, **export_metadata(metadata)}
     yaml_text = yaml.safe_dump(frontmatter, allow_unicode=True, sort_keys=False).strip()
     body = content.strip()
     heading = "" if body.startswith("#") else f"# {title}\n\n"
@@ -23,4 +32,3 @@ def paper_markdown(paper_id: str, title: str, metadata: dict[str, Any], content:
 def write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
-

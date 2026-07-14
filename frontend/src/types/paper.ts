@@ -1,9 +1,7 @@
 export type PaperMetadata = {
-  authors?: string[];
-  year?: number | null;
-  venue?: string;
   tags?: string[];
   status?: string;
+  tldr?: string;
   nodeColor?: "clay" | "ochre" | "olive" | "cinnabar" | "graphite";
   nodeShape?: "rounded" | "note" | "capsule";
   [key: string]: unknown;

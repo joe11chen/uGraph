@@ -1,8 +1,9 @@
 import { FormEvent, KeyboardEvent, useEffect, useState } from "react";
-import { Circle, Palette, Plus, Save, Square, Tags, Users, X } from "lucide-react";
+import { Circle, FileText, Palette, Plus, Save, Square, Tags, X } from "lucide-react";
 import { SelectField } from "../../components/SelectField";
 import type { Paper, PaperMetadata } from "../../types/paper";
 import type { IncomingRelationGroup, RelationLabel } from "../../types/relation";
+import { formatRelationName, paperStatusOptions } from "../../utils/labels";
 
 type NodeColor = NonNullable<PaperMetadata["nodeColor"]>;
 type NodeShape = NonNullable<PaperMetadata["nodeShape"]>;
@@ -19,9 +20,6 @@ type Props = {
   onSave: (payload: { title: string; metadata: PaperMetadata; relationGroups: IncomingRelationGroup[] }) => void;
 };
 
-const statusOptions = ["Unread", "Reading", "Read", "Important", "Archived"];
-const statusSelectOptions = statusOptions.map((status) => ({ value: status, label: status }));
-
 const colorOptions: Array<{ value: NodeColor; label: string }> = [
   { value: "clay", label: "陶土" },
   { value: "ochre", label: "赭黄" },
@@ -35,10 +33,6 @@ const shapeOptions: Array<{ value: NodeShape; label: string }> = [
   { value: "note", label: "便签" },
   { value: "capsule", label: "胶囊" }
 ];
-
-function listToText(value: unknown): string {
-  return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean).join(", ") : "";
-}
 
 function textToList(value: string): string[] {
   return value
@@ -55,6 +49,23 @@ function normalizeShape(value: unknown): NodeShape {
   return shapeOptions.some((option) => option.value === value) ? (value as NodeShape) : "rounded";
 }
 
+function mergedTagText(metadata: PaperMetadata): string {
+  const legacyTags = [
+    ...(Array.isArray(metadata.tags) ? metadata.tags : []),
+    ...(Array.isArray(metadata.authors) ? metadata.authors : []),
+    metadata.year,
+    metadata.venue
+  ]
+    .map((item) => String(item ?? "").trim())
+    .filter(Boolean);
+  return Array.from(new Set(legacyTags)).join(", ");
+}
+
+function metadataBase(metadata: PaperMetadata): PaperMetadata {
+  const { authors: _authors, year: _year, venue: _venue, ...base } = metadata;
+  return base;
+}
+
 export function EditNodeDialog({
   open,
   paper,
@@ -67,11 +78,9 @@ export function EditNodeDialog({
   onSave
 }: Props) {
   const [title, setTitle] = useState("");
-  const [authors, setAuthors] = useState("");
-  const [year, setYear] = useState("");
-  const [venue, setVenue] = useState("");
   const [status, setStatus] = useState("Unread");
   const [tags, setTags] = useState("");
+  const [tldr, setTldr] = useState("");
   const [nodeColor, setNodeColor] = useState<NodeColor>("clay");
   const [nodeShape, setNodeShape] = useState<NodeShape>("rounded");
   const [relationGroups, setRelationGroups] = useState<IncomingRelationGroup[]>([]);
@@ -84,11 +93,9 @@ export function EditNodeDialog({
     }
 
     setTitle(paper.title);
-    setAuthors(listToText(paper.metadata.authors));
-    setYear(paper.metadata.year ? String(paper.metadata.year) : "");
-    setVenue(String(paper.metadata.venue ?? ""));
     setStatus(String(paper.metadata.status ?? "Unread"));
-    setTags(listToText(paper.metadata.tags));
+    setTags(mergedTagText(paper.metadata));
+    setTldr(String(paper.metadata.tldr ?? ""));
     setNodeColor(normalizeColor(paper.metadata.nodeColor));
     setNodeShape(normalizeShape(paper.metadata.nodeShape));
     setActiveTab("metadata");
@@ -112,12 +119,10 @@ export function EditNodeDialog({
     onSave({
       title: title.trim(),
       metadata: {
-        ...paper.metadata,
-        authors: textToList(authors),
-        year: year ? Number(year) : null,
-        venue: venue.trim(),
+        ...metadataBase(paper.metadata),
         status,
         tags: textToList(tags),
+        tldr: tldr.trim(),
         nodeColor,
         nodeShape
       },
@@ -177,7 +182,6 @@ export function EditNodeDialog({
     relationGroups.find((group) => group.label_id === draftRelation.labelId)?.source_paper_ids ?? []
   );
   const sourceOptions = availablePapers.filter((source) => source.id !== paper?.id && !draftSelectedSources.has(source.id));
-  const dialogStyle = { width: "min(700px, calc(100vw - 36px))" };
   const titleRows = title.length > 62 ? 2 : 1;
   const canSave = !isSaving && !isLoading && Boolean(paper) && Boolean(title.trim());
 
@@ -192,11 +196,11 @@ export function EditNodeDialog({
 
   return (
     <div className="dialog-backdrop" role="presentation">
-      <form className={`dialog node-edit-dialog node-edit-dialog-${activeTab}`} style={dialogStyle} onSubmit={submit} onKeyDown={handleFormKeyDown}>
+      <form className={`dialog node-edit-dialog node-edit-dialog-${activeTab}`} onSubmit={submit} onKeyDown={handleFormKeyDown}>
         <div className="dialog-header">
           <div>
-            <span className="eyebrow">Node Inspector</span>
-            <h2>编辑节点</h2>
+            <span className="eyebrow">文献档案</span>
+            <h2>编辑文献</h2>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="关闭">
             <X size={18} />
@@ -204,10 +208,10 @@ export function EditNodeDialog({
         </div>
 
         {isLoading || !paper ? (
-          <div className="dialog-loading">正在载入节点档案...</div>
+          <div className="dialog-loading">正在载入文献信息...</div>
         ) : (
           <div className="node-edit-body">
-            <div className="node-edit-tabs" role="tablist" aria-label="节点编辑面板">
+            <div className="node-edit-tabs" role="tablist" aria-label="文献编辑面板">
               <button
                 type="button"
                 className={activeTab === "metadata" ? "active" : ""}
@@ -215,7 +219,7 @@ export function EditNodeDialog({
                 role="tab"
                 aria-selected={activeTab === "metadata"}
               >
-                Metadata
+                信息
               </button>
               <button
                 type="button"
@@ -224,7 +228,7 @@ export function EditNodeDialog({
                 role="tab"
                 aria-selected={activeTab === "style"}
               >
-                样式
+                显示
               </button>
               <button
                 type="button"
@@ -257,30 +261,27 @@ export function EditNodeDialog({
                 <div className="node-edit-main">
                   <div className="node-metadata-grid">
                     <label>
-                      <span className="label-with-icon">
-                        <Users size={14} />
-                        作者
-                      </span>
-                      <input value={authors} onChange={(event) => setAuthors(event.target.value)} placeholder="Ashish Vaswani, Noam Shazeer" />
-                    </label>
-                    <label>
-                      年份
-                      <input value={year} onChange={(event) => setYear(event.target.value)} inputMode="numeric" placeholder="2026" />
-                    </label>
-                    <label>
-                      会议 / 期刊
-                      <input value={venue} onChange={(event) => setVenue(event.target.value)} placeholder="SIGGRAPH" />
-                    </label>
-                    <label>
                       状态
-                      <SelectField value={status} options={statusSelectOptions} onChange={setStatus} ariaLabel="选择状态" />
+                      <SelectField value={status} options={paperStatusOptions} onChange={setStatus} ariaLabel="选择状态" />
                     </label>
                     <label className="span-full">
                       <span className="label-with-icon">
                         <Tags size={14} />
                         标签
                       </span>
-                      <input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="Transformer, NLP" />
+                      <input value={tags} onChange={(event) => setTags(event.target.value)} placeholder="作者、会议、主题，用逗号分隔" />
+                    </label>
+                    <label className="span-full">
+                      <span className="label-with-icon">
+                        <FileText size={14} />
+                        TLDR
+                      </span>
+                      <textarea
+                        className="rich-textarea"
+                        value={tldr}
+                        onChange={(event) => setTldr(event.target.value)}
+                        placeholder="记录核心结论、方法贡献或后续要追踪的问题。支持 Markdown 风格的简短标记。"
+                      />
                     </label>
                   </div>
                 </div>
@@ -289,12 +290,12 @@ export function EditNodeDialog({
             ) : activeTab === "style" ? (
               <section className="node-style-tab node-tab-panel" role="tabpanel">
                 <div className="node-relation-context">
-                  <span>当前节点</span>
+                  <span>当前文献</span>
                   <strong>{title}</strong>
                 </div>
                 <div className="subpanel-heading">
-                  <span className="eyebrow">Node Style</span>
-                  <h3>节点显示样式</h3>
+                  <span className="eyebrow">展示方式</span>
+                  <h3>文献卡片样式</h3>
                 </div>
                 <div className="node-style-grid">
                   <fieldset>
@@ -342,17 +343,17 @@ export function EditNodeDialog({
             ) : (
               <section className="incoming-relations-panel node-relations-tab node-tab-panel" role="tabpanel">
                 <div className="node-relation-context">
-                  <span>当前节点</span>
+                  <span>当前文献</span>
                   <strong>{title}</strong>
                 </div>
                 <div className="subpanel-heading">
-                  <span className="eyebrow">Incoming Relations</span>
+                  <span className="eyebrow">文献关系</span>
                   <h3>指向本文的关系</h3>
                 </div>
                 <div className="relation-edge-list">
                   <div className="relation-edge-header" aria-hidden="true">
-                    <span>来源节点</span>
-                    <span>标签关系</span>
+                    <span>来源文献</span>
+                    <span>关系类型</span>
                     <span />
                   </div>
                   {existingRelationEdges.length === 0 ? (
@@ -368,7 +369,7 @@ export function EditNodeDialog({
                             {edge.label?.emoji ?? "🔗"}
                           </span>
                           <span className="relation-label-text">
-                            <strong>{edge.label?.name ?? edge.labelId}</strong>
+                            <strong>{edge.label ? formatRelationName(edge.label.name) : edge.labelId}</strong>
                           </span>
                         </span>
                         <button
@@ -388,19 +389,19 @@ export function EditNodeDialog({
                         value={draftRelation.sourceId}
                         options={sourceOptions.map((source) => ({ value: source.id, label: source.title }))}
                         onChange={(sourceId) => setDraftRelation((current) => ({ ...current, sourceId }))}
-                        placeholder="选择来源节点"
+                        placeholder="选择来源文献"
                         disabled={!draftRelation.labelId}
-                        ariaLabel="选择来源节点"
+                        ariaLabel="选择来源文献"
                       />
                     </div>
                     <div className="relation-picker-field">
                       <SelectField
                         value={draftRelation.labelId}
-                        options={relationLabels.map((label) => ({ value: label.id, label: `${label.emoji} ${label.name}` }))}
+                        options={relationLabels.map((label) => ({ value: label.id, label: `${label.emoji} ${formatRelationName(label.name)}` }))}
                         onChange={(labelId) => setDraftRelation((current) => ({ ...current, labelId, sourceId: "" }))}
-                        placeholder="选择关系"
+                        placeholder="选择关系类型"
                         disabled={relationLabels.length === 0}
-                        ariaLabel="选择关系标签"
+                        ariaLabel="选择关系类型"
                       />
                     </div>
                     <button type="button" onClick={addRelationEdge} disabled={!draftRelation.labelId || !draftRelation.sourceId}>
@@ -420,7 +421,7 @@ export function EditNodeDialog({
           </button>
           <button className="primary-action" type="submit" disabled={!canSave}>
             <Save size={17} />
-            {isSaving ? "保存中" : "保存节点"}
+            {isSaving ? "保存中" : "保存文献"}
           </button>
         </div>
       </form>

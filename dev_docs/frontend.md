@@ -1,6 +1,6 @@
 # 前端实现说明
 
-本文档记录当前前端的稳定页面结构、交互契约和状态管理。视觉规范以 [design-system.md](./design-system.md) 为准，临时样式调整不写入本文档。
+本文档记录当前前端的稳定页面结构、交互契约和状态管理。视觉规范以 [agent_skills/design-system.md](./agent_skills/design-system.md) 为准，临时样式调整不写入本文档。
 
 ## 技术栈
 
@@ -28,7 +28,7 @@
 
 - 加载默认项目和图谱数据。
 - 使用 React Flow 展示论文节点和关系边。
-- 在图谱概览面板中按 title、authors、venue、tags、status 本地搜索节点。
+- 在图谱概览面板中按 title、tags、status、TLDR 本地搜索节点。
 - 点击搜索结果后定位并展开目标节点。
 - 新建论文节点。
 - 拖拽节点并保存位置。
@@ -89,9 +89,9 @@ GraphPage
 
 ```text
 title 必填
-year 可选
-venue 可选
+status 可选
 tags 可选
+TLDR 可选
 ```
 
 ### 展示和展开
@@ -107,7 +107,8 @@ PaperNode 有两种状态：
   - 操作菜单
   - status
   - title
-  - authors/year/venue/tags（如存在）
+  - TLDR（如存在）
+  - tags（如存在）
 ```
 
 实现要点：
@@ -131,17 +132,15 @@ PaperNode 有两种状态：
 
 ```text
 title
-authors
-year
-venue
 status
 tags
+TLDR
 nodeColor
 nodeShape
 incoming relations
 ```
 
-`nodeColor` 和 `nodeShape` 存在 `paper.metadata` 中，不单独建表。
+`tags` 统一承载作者、会议/期刊、主题和自定义短标签。`nodeColor` 和 `nodeShape` 存在 `paper.metadata` 中，不单独建表。
 
 ## 关系编辑
 

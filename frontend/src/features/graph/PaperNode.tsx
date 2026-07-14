@@ -1,9 +1,10 @@
 import type { NodeProps } from "@xyflow/react";
 import { Handle, Position } from "@xyflow/react";
-import { Calendar, MapPin, Pencil, Tags, Trash2, Users } from "lucide-react";
+import { FileText, Pencil, Tags, Trash2 } from "lucide-react";
 import type { CSSProperties } from "react";
 import type { MouseEvent } from "react";
 import type { PaperMetadata } from "../../types/paper";
+import { formatPaperStatus } from "../../utils/labels";
 
 export type PaperNodeData = {
   [key: string]: unknown;
@@ -34,12 +35,11 @@ export function PaperNode({ data }: NodeProps) {
   const nodeData = data as PaperNodeData;
   const metadata = nodeData.metadata;
   const tags = stringifyList(metadata.tags);
-  const authors = stringifyList(metadata.authors);
-  const status = String(metadata.status ?? "Unread");
+  const tldr = String(metadata.tldr ?? "").trim();
+  const status = formatPaperStatus(metadata.status);
   const color = colorClasses.has(String(metadata.nodeColor)) ? String(metadata.nodeColor) : "clay";
   const shape = shapeClasses.has(String(metadata.nodeShape)) ? String(metadata.nodeShape) : "rounded";
-  const hasYearOrVenue = Boolean(metadata.year || metadata.venue);
-  const hasExpandedMetadata = authors.length > 0 || hasYearOrVenue || tags.length > 0;
+  const hasExpandedMetadata = Boolean(tldr) || tags.length > 0;
   const isExpanded = Boolean(nodeData.expanded);
 
   const className = isExpanded
@@ -61,7 +61,7 @@ export function PaperNode({ data }: NodeProps) {
     <div className={className} style={nodeStyle}>
       <Handle type="target" position={Position.Left} />
       {isExpanded ? (
-        <div className="node-action-menu" aria-label="节点操作" onPointerDown={(event) => event.stopPropagation()}>
+        <div className="node-action-menu" aria-label="文献操作" onPointerDown={(event) => event.stopPropagation()}>
           <button
             type="button"
             className="icon-button"
@@ -69,8 +69,8 @@ export function PaperNode({ data }: NodeProps) {
               stopNodeEvent(event);
               nodeData.onEdit?.(nodeData.canvasNodeId);
             }}
-            aria-label="编辑节点"
-            title="编辑节点"
+            aria-label="编辑文献"
+            title="编辑文献"
           >
             <Pencil size={15} />
           </button>
@@ -81,8 +81,8 @@ export function PaperNode({ data }: NodeProps) {
               stopNodeEvent(event);
               nodeData.onDelete?.(nodeData.canvasNodeId);
             }}
-            aria-label="删除节点"
-            title="删除节点"
+            aria-label="删除文献"
+            title="删除文献"
           >
             <Trash2 size={15} />
           </button>
@@ -94,26 +94,10 @@ export function PaperNode({ data }: NodeProps) {
       <div className="paper-node-title">{nodeData.title}</div>
       {isExpanded && hasExpandedMetadata ? (
         <div className="paper-node-details">
-          {authors.length > 0 ? (
+          {tldr ? (
             <div className="metadata-row">
-              <Users size={13} />
-              <span>{authors.join(", ")}</span>
-            </div>
-          ) : null}
-          {hasYearOrVenue ? (
-            <div className="metadata-grid-mini">
-              {metadata.year ? (
-                <div>
-                  <Calendar size={13} />
-                  <span>{String(metadata.year)}</span>
-                </div>
-              ) : null}
-              {metadata.venue ? (
-                <div>
-                  <MapPin size={13} />
-                  <span>{String(metadata.venue)}</span>
-                </div>
-              ) : null}
+              <FileText size={13} />
+              <span className="node-tldr">{tldr}</span>
             </div>
           ) : null}
           {tags.length > 0 ? (

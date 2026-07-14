@@ -25,7 +25,7 @@
 
 - 加载默认项目和默认画布。
 - 使用 React Flow 展示论文节点和有向关系边。
-- 新建论文节点，`title` 必填，可填写 `year`、`venue`、`tags`。
+- 新建论文节点，`title` 必填，可填写 `status`、`tags`、`TLDR`。
 - 单击节点展开/收起 metadata。
 - 点击画布空白区域收起当前节点。
 - 拖动节点并在拖动结束后保存位置。
@@ -33,7 +33,7 @@
 - 展开节点后可快速编辑 title、metadata、节点颜色和节点形状。
 - 在节点编辑弹窗中维护“指向本文的关系”，只展示已存在关系和一行空白添加器。
 - 通过关系设置弹窗维护项目级关系标签 emoji、名称、颜色、线型和排序。
-- 在图谱概览面板中按 title、authors、venue、tags、status 搜索节点。
+- 在图谱概览面板中按 title、tags、status、TLDR 搜索节点。
 - 点击搜索结果后定位并展开目标节点。
 - 展开节点后可删除节点，删除前显示自定义确认弹窗。
 - 节点宽度按内容自适应，长标题有最大宽度限制。
@@ -63,8 +63,9 @@ frontend/src/features/graph/RelationLabelsDialog.tsx
 
 - 加载论文详情。
 - 编辑 `title`。
-- 编辑 metadata：`authors`、`year`、`venue`、`tags`、`status`。
+- 编辑 metadata：`status`、`tags`、`TLDR`。
 - 使用 Vditor WYSIWYG 编辑 Markdown。
+- 根据 Markdown H1/H2/H3 生成可折叠左侧目录，并支持点击定位到对应标题。
 - Vditor runtime 从本地 `/vditor` 路径加载。
 - Vditor 初始化失败时降级为 textarea。
 - 手动保存。
@@ -81,6 +82,7 @@ frontend/src/features/graph/RelationLabelsDialog.tsx
 frontend/src/pages/PaperEditorPage.tsx
 frontend/src/features/papers/PaperMetadataForm.tsx
 frontend/src/features/papers/MarkdownEditor.tsx
+frontend/src/styles.css
 frontend/vite.config.ts
 ```
 

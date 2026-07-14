@@ -32,6 +32,7 @@ import { RelationLabelsDialog } from "../features/graph/RelationLabelsDialog";
 import type { PaperMetadata } from "../types/paper";
 import type { IncomingRelationGroup } from "../types/relation";
 import { getErrorMessage } from "../utils/errors";
+import { formatPaperStatus, formatRelationName } from "../utils/labels";
 
 const nodeTypes = { paper: PaperNode };
 const maxSearchResults = 8;
@@ -54,6 +55,10 @@ function normalizeSearchText(value: unknown): string {
     return value.map((item) => String(item)).join(" ");
   }
   return String(value);
+}
+
+function formatProjectName(value: string | undefined): string {
+  return value && value !== "Default Project" ? value : "研究资料库";
 }
 
 export function GraphPage() {
@@ -119,7 +124,9 @@ export function GraphPage() {
           normalizeSearchText(metadata.authors),
           normalizeSearchText(metadata.venue),
           normalizeSearchText(metadata.tags),
-          normalizeSearchText(metadata.status)
+          normalizeSearchText(metadata.status),
+          formatPaperStatus(metadata.status),
+          normalizeSearchText(metadata.tldr)
         ]
           .join(" ")
           .toLowerCase();
@@ -149,18 +156,18 @@ export function GraphPage() {
       setCreateOpen(false);
       await queryClient.invalidateQueries({ queryKey: ["graph", projectQuery.data?.id] });
     },
-    onError: (error) => setErrorMessage(getErrorMessage(error, "创建失败"))
+    onError: (error) => setErrorMessage(getErrorMessage(error, "文献创建失败"))
   });
 
   const positionMutation = useMutation({
     mutationFn: (payload: { canvasNodeId: string; x: number; y: number }) =>
       updateCanvasNodePosition(payload.canvasNodeId, payload.x, payload.y),
-    onError: (error) => setErrorMessage(getErrorMessage(error, "位置保存失败"))
+    onError: (error) => setErrorMessage(getErrorMessage(error, "布局保存失败"))
   });
 
   const exportMutation = useMutation({
     mutationFn: () => exportProjectMarkdown(projectQuery.data!.id),
-    onSuccess: (result) => setNoticeMessage(`已导出到 workspace/${result.export_path}`),
+    onSuccess: (result) => setNoticeMessage(`导出完成，文件已保存到 ${result.export_path}`),
     onError: (error) => setErrorMessage(getErrorMessage(error, "导出失败"))
   });
 
@@ -176,19 +183,19 @@ export function GraphPage() {
       return paper;
     },
     onSuccess: async (paper) => {
-      setNoticeMessage("节点已更新");
+      setNoticeMessage("文献已更新");
       setEditingCanvasNodeId(null);
       await queryClient.invalidateQueries({ queryKey: ["paper", paper.id] });
       await queryClient.invalidateQueries({ queryKey: ["incoming-relations", paper.id] });
       await queryClient.invalidateQueries({ queryKey: ["graph", projectQuery.data?.id] });
     },
-    onError: (error) => setErrorMessage(getErrorMessage(error, "节点保存失败"))
+    onError: (error) => setErrorMessage(getErrorMessage(error, "文献保存失败"))
   });
 
   const deleteMutation = useMutation({
     mutationFn: (paperId: string) => deletePaper(paperId),
     onSuccess: async () => {
-      setNoticeMessage("节点已删除");
+      setNoticeMessage("文献已删除");
       setExpandedNodeId(null);
       setEditingCanvasNodeId(null);
       setDeletingCanvasNodeId(null);
@@ -200,29 +207,29 @@ export function GraphPage() {
   const createRelationLabelMutation = useMutation({
     mutationFn: (payload: Parameters<typeof createRelationLabel>[1]) => createRelationLabel(projectQuery.data!.id, payload),
     onSuccess: async () => {
-      setNoticeMessage("关系标签已添加");
+      setNoticeMessage("关系类型已添加");
       await queryClient.invalidateQueries({ queryKey: ["graph", projectQuery.data?.id] });
     },
-    onError: (error) => setErrorMessage(getErrorMessage(error, "关系标签创建失败"))
+    onError: (error) => setErrorMessage(getErrorMessage(error, "关系类型创建失败"))
   });
 
   const updateRelationLabelMutation = useMutation({
     mutationFn: (payload: { labelId: string; value: Parameters<typeof updateRelationLabel>[1] }) =>
       updateRelationLabel(payload.labelId, payload.value),
     onSuccess: async () => {
-      setNoticeMessage("关系标签已更新");
+      setNoticeMessage("关系类型已更新");
       await queryClient.invalidateQueries({ queryKey: ["graph", projectQuery.data?.id] });
     },
-    onError: (error) => setErrorMessage(getErrorMessage(error, "关系标签保存失败"))
+    onError: (error) => setErrorMessage(getErrorMessage(error, "关系类型保存失败"))
   });
 
   const deleteRelationLabelMutation = useMutation({
     mutationFn: (labelId: string) => deleteRelationLabel(labelId),
     onSuccess: async () => {
-      setNoticeMessage("关系标签已删除");
+      setNoticeMessage("关系类型已删除");
       await queryClient.invalidateQueries({ queryKey: ["graph", projectQuery.data?.id] });
     },
-    onError: (error) => setErrorMessage(getErrorMessage(error, "关系标签删除失败"))
+    onError: (error) => setErrorMessage(getErrorMessage(error, "关系类型删除失败"))
   });
 
   const openNodeEditor = useCallback((canvasNodeId: string) => {
@@ -234,7 +241,7 @@ export function GraphPage() {
     (canvasNodeId: string) => {
       const graphNode = graphQuery.data?.nodes.find((node) => node.id === canvasNodeId);
       if (!graphNode) {
-        setErrorMessage("未找到要定位的节点");
+        setErrorMessage("未找到要定位的文献");
         return;
       }
 
@@ -255,7 +262,7 @@ export function GraphPage() {
     (canvasNodeId: string) => {
       const graphNode = graphQuery.data?.nodes.find((node) => node.id === canvasNodeId);
       if (!graphNode) {
-        setErrorMessage("未找到要删除的节点");
+        setErrorMessage("未找到要删除的文献");
         return;
       }
 
@@ -265,7 +272,7 @@ export function GraphPage() {
     [graphQuery.data]
   );
 
-  const graphNodes = useMemo<Node<PaperNodeData>[]>(
+  const graphNodesFromData = useMemo<Node<PaperNodeData>[]>(
     () =>
       graphQuery.data?.nodes.map((node) => ({
         id: node.id,
@@ -275,14 +282,14 @@ export function GraphPage() {
           canvasNodeId: node.id,
           title: node.paper.title,
           metadata: node.paper.metadata,
-          expanded: node.id === expandedNodeId,
+          expanded: false,
           onEdit: openNodeEditor,
           onDelete: requestDeleteNode
         },
         draggable: true,
         selectable: true
       })) ?? [],
-    [expandedNodeId, graphQuery.data, openNodeEditor, requestDeleteNode]
+    [graphQuery.data, openNodeEditor, requestDeleteNode]
   );
 
   const graphEdges = useMemo<Edge[]>(
@@ -300,7 +307,7 @@ export function GraphPage() {
             id: edge.id,
             source,
             target,
-            label: `${label.emoji} ${label.name}`,
+            label: `${label.emoji} ${formatRelationName(label.name)}`,
             type: "smoothstep",
             markerEnd: { type: MarkerType.ArrowClosed, color: label.color },
             style: {
@@ -328,8 +335,23 @@ export function GraphPage() {
   );
 
   useEffect(() => {
-    setNodes(graphNodes);
-  }, [graphNodes, setNodes]);
+    setNodes((currentNodes) => {
+      const currentById = new Map(currentNodes.map((node) => [node.id, node]));
+      return graphNodesFromData.map((nextNode) => {
+        const currentNode = currentById.get(nextNode.id);
+        return {
+          ...nextNode,
+          position: currentNode?.position ?? nextNode.position,
+          selected: currentNode?.selected ?? nextNode.selected,
+          dragging: currentNode?.dragging ?? nextNode.dragging,
+          data: {
+            ...nextNode.data,
+            expanded: nextNode.id === expandedNodeId
+          }
+        };
+      });
+    });
+  }, [expandedNodeId, graphNodesFromData, setNodes]);
 
   useEffect(() => {
     setNodes((currentNodes) =>
@@ -382,11 +404,11 @@ export function GraphPage() {
   }, []);
 
   if (projectQuery.isLoading || graphQuery.isLoading) {
-    return <div className="page-state">正在载入研究图谱...</div>;
+    return <div className="page-state">正在打开研究网络...</div>;
   }
 
   if (projectQuery.error || graphQuery.error) {
-    return <div className="page-state error">图谱加载失败</div>;
+    return <div className="page-state error">研究网络加载失败</div>;
   }
 
   const paperCount = nodes.length;
@@ -401,23 +423,23 @@ export function GraphPage() {
             <Network size={22} />
           </div>
           <div>
-            <span className="eyebrow">uGraph Workspace</span>
-            <h1>本地论文图谱</h1>
-            <p>{projectQuery.data?.name}</p>
+            <span className="eyebrow">uGraph</span>
+            <h1>文献工作台</h1>
+            <p>{formatProjectName(projectQuery.data?.name)}</p>
           </div>
         </div>
         <div className="toolbar">
           <button className="primary-action" onClick={() => setCreateOpen(true)}>
             <FilePlus2 size={17} />
-            新建节点
+            新建文献
           </button>
           <button onClick={() => setRelationSettingsOpen(true)}>
             <SlidersHorizontal size={17} />
-            关系设置
+            关系管理
           </button>
           <button onClick={() => exportMutation.mutate()} disabled={exportMutation.isPending}>
             <Download size={17} />
-            {exportMutation.isPending ? "导出中" : "导出 Markdown"}
+            {exportMutation.isPending ? "导出中" : "导出笔记"}
           </button>
         </div>
       </header>
@@ -426,34 +448,34 @@ export function GraphPage() {
         <aside className="graph-command-panel">
           <div className="panel-heading">
             <FolderKanban size={18} />
-            <span>图谱概览</span>
+            <span>研究概览</span>
           </div>
           <div className="graph-stats">
             <div>
               <strong>{paperCount}</strong>
-              <span>论文节点</span>
+              <span>文献</span>
             </div>
             <div>
               <strong>{taggedCount}</strong>
-              <span>已标记</span>
+              <span>已归类</span>
             </div>
           </div>
           <div className="panel-tip">
             <Save size={16} />
-            <span>布局保存就绪</span>
+            <span>布局已保存</span>
           </div>
           <div className="graph-search">
             <label htmlFor="graph-node-search">
               <span className="label-with-icon">
                 <Search size={15} />
-                搜索节点
+                搜索文献
               </span>
               <div className="search-input-wrap">
                 <input
                   id="graph-node-search"
                   type="search"
                   value={searchQuery}
-                  placeholder="标题、作者、会议、标签或状态"
+                  placeholder="标题、标签、状态或 TLDR"
                   onChange={(event) => setSearchQuery(event.target.value)}
                 />
                 {searchQuery ? (
@@ -474,19 +496,19 @@ export function GraphPage() {
                   visibleSearchResults.map((node) => {
                     const metadata = node.paper.metadata;
                     const tags = Array.isArray(metadata.tags) ? metadata.tags : [];
-                    const authors = Array.isArray(metadata.authors) ? metadata.authors : [];
+                    const tldr = String(metadata.tldr ?? "").trim();
                     return (
                       <button key={node.id} type="button" className="search-result" onClick={() => focusGraphNode(node.id)}>
                         <span className="search-result-title">{node.paper.title}</span>
                         <span className="search-result-meta">
-                          {[metadata.status, authors[0], metadata.venue, tags[0]].filter(Boolean).join(" / ") || "无 metadata"}
+                          {[formatPaperStatus(metadata.status), tags[0], tldr].filter(Boolean).join(" / ") || "暂无摘要信息"}
                         </span>
                         <LocateFixed size={15} />
                       </button>
                     );
                   })
                 ) : (
-                  <div className="search-empty">没有匹配的节点</div>
+                  <div className="search-empty">没有匹配结果</div>
                 )}
                 {searchResults.length > maxSearchResults ? (
                   <div className="search-more">还有 {searchResults.length - maxSearchResults} 个结果，继续输入可缩小范围</div>
@@ -497,8 +519,8 @@ export function GraphPage() {
         </aside>
         {nodes.length === 0 ? (
           <div className="empty-hint">
-            <strong>暂无论文节点</strong>
-            <span>研究地图等待第一篇论文。</span>
+            <strong>还没有文献</strong>
+            <span>从第一篇资料开始建立你的研究脉络。</span>
           </div>
         ) : null}
         <ReactFlow
@@ -567,7 +589,7 @@ export function GraphPage() {
           }
         }}
       />
-      <AlertDialog open={Boolean(errorMessage)} title="操作失败" message={errorMessage ?? ""} onConfirm={clearErrorMessage} />
+      <AlertDialog open={Boolean(errorMessage)} title="未能完成操作" message={errorMessage ?? ""} onConfirm={clearErrorMessage} />
     </div>
   );
 }

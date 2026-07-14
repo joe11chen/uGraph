@@ -22,7 +22,7 @@ export function AlertDialog({ open, title, message, confirmLabel = "确认", onC
               <AlertTriangle size={18} />
             </span>
             <div>
-              <span className="eyebrow">Attention</span>
+              <span className="eyebrow">请留意</span>
               <h2 id="alert-dialog-title">{title}</h2>
             </div>
           </div>

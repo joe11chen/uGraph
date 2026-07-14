@@ -18,10 +18,10 @@ from app.schemas.relation import (
 
 
 DEFAULT_LABELS = [
-    {"name": "Cites", "emoji": "📎", "color": "#8b5e3c", "line_style": "solid", "sort_order": 10},
-    {"name": "Builds on", "emoji": "🧱", "color": "#b8653f", "line_style": "solid", "sort_order": 20},
-    {"name": "Uses method", "emoji": "🛠️", "color": "#66763f", "line_style": "dashed", "sort_order": 30},
-    {"name": "Compares with", "emoji": "⚖️", "color": "#3f3a33", "line_style": "dotted", "sort_order": 40},
+    {"name": "引用", "emoji": "📎", "color": "#8b5e3c", "line_style": "solid", "sort_order": 10},
+    {"name": "延伸", "emoji": "🧱", "color": "#b8653f", "line_style": "solid", "sort_order": 20},
+    {"name": "使用方法", "emoji": "🛠️", "color": "#66763f", "line_style": "dashed", "sort_order": 30},
+    {"name": "对比", "emoji": "⚖️", "color": "#3f3a33", "line_style": "dotted", "sort_order": 40},
 ]
 
 ALLOWED_LINE_STYLES = {"solid", "dashed", "dotted"}

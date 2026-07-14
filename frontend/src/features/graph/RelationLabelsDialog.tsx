@@ -2,6 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 import { Plus, Save, Trash2, X } from "lucide-react";
 import { SelectField } from "../../components/SelectField";
 import type { RelationLabel, RelationLabelInput, RelationLineStyle } from "../../types/relation";
+import { formatRelationName } from "../../utils/labels";
 
 type Props = {
   open: boolean;
@@ -26,7 +27,7 @@ const lineStyleSelectOptions = lineStyleOptions.map((option) => ({ value: option
 
 function labelToDraft(label: RelationLabel): Draft {
   return {
-    name: label.name,
+    name: formatRelationName(label.name),
     emoji: label.emoji,
     color: label.color,
     line_style: label.line_style,
@@ -86,8 +87,8 @@ export function RelationLabelsDialog({ open, labels, onClose, onCreate, onUpdate
       <section className="dialog relation-labels-dialog" role="dialog" aria-modal="true" aria-labelledby="relation-labels-title">
         <div className="dialog-header">
           <div>
-            <span className="eyebrow">Relation Settings</span>
-            <h2 id="relation-labels-title">关系标签设置</h2>
+            <span className="eyebrow">关系管理</span>
+            <h2 id="relation-labels-title">关系类型</h2>
           </div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="关闭">
             <X size={18} />
@@ -95,7 +96,7 @@ export function RelationLabelsDialog({ open, labels, onClose, onCreate, onUpdate
         </div>
 
         <div className="relation-label-editor">
-          <div className="relation-label-list" aria-label="已有关系标签">
+          <div className="relation-label-list" aria-label="已有关系类型">
             {labels.map((label) => {
               const draft = drafts[label.id] ?? labelToDraft(label);
               const previewName = draft.name.trim() || "未命名";
@@ -107,12 +108,12 @@ export function RelationLabelsDialog({ open, labels, onClose, onCreate, onUpdate
                   </div>
 
                   <label className="compact-field relation-emoji-field">
-                    <span>Emoji</span>
+                    <span>图标</span>
                     <input
                       value={draft.emoji}
                       onChange={(event) => updateDraft(label.id, { emoji: event.target.value })}
                       maxLength={16}
-                      aria-label="关系 Emoji"
+                      aria-label="关系图标"
                     />
                   </label>
 
@@ -156,7 +157,7 @@ export function RelationLabelsDialog({ open, labels, onClose, onCreate, onUpdate
                       className="danger-action icon-only"
                       onClick={() => onDelete(label.id)}
                       disabled={isMutating}
-                      aria-label="删除关系标签"
+                      aria-label="删除关系类型"
                     >
                       <Trash2 size={15} />
                     </button>
@@ -168,23 +169,23 @@ export function RelationLabelsDialog({ open, labels, onClose, onCreate, onUpdate
 
           <form className="relation-label-new" onSubmit={submitNew}>
             <div className="relation-label-new-head">
-              <span className="eyebrow">New Label</span>
-              <strong>新增关系标签</strong>
+              <span className="eyebrow">新增类型</span>
+              <strong>添加关系类型</strong>
             </div>
 
             <label className="compact-field relation-emoji-field">
-              <span>Emoji</span>
+              <span>图标</span>
               <input
                 value={newDraft.emoji}
                 onChange={(event) => setNewDraft((current) => ({ ...current, emoji: event.target.value }))}
                 maxLength={16}
-                aria-label="新关系 Emoji"
+                aria-label="新关系图标"
               />
             </label>
 
             <label className="compact-field relation-name-field">
               <span>名称</span>
-              <input value={newDraft.name} onChange={(event) => setNewDraft((current) => ({ ...current, name: event.target.value }))} placeholder="新关系标签" />
+              <input value={newDraft.name} onChange={(event) => setNewDraft((current) => ({ ...current, name: event.target.value }))} placeholder="例如：引用、延伸、对比" />
             </label>
 
             <label className="compact-field relation-color-field">
@@ -209,7 +210,7 @@ export function RelationLabelsDialog({ open, labels, onClose, onCreate, onUpdate
 
             <button className="primary-action" type="submit" disabled={isMutating || !newDraft.name.trim()}>
               <Plus size={16} />
-              添加标签
+              添加类型
             </button>
           </form>
         </div>

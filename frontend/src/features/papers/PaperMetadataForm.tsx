@@ -1,6 +1,7 @@
-import { Tags, Users } from "lucide-react";
+import { FileText, Tags } from "lucide-react";
 import { SelectField } from "../../components/SelectField";
 import type { PaperMetadata } from "../../types/paper";
+import { formatPaperStatus, paperStatusOptions } from "../../utils/labels";
 
 type Props = {
   title: string;
@@ -9,25 +10,31 @@ type Props = {
   onMetadataChange: (metadata: PaperMetadata) => void;
 };
 
-const statusOptions = ["Unread", "Reading", "Read", "Important", "Archived"];
-const statusSelectOptions = statusOptions.map((status) => ({ value: status, label: status }));
-
 export function PaperMetadataForm({ title, metadata, onTitleChange, onMetadataChange }: Props) {
-  const tags = Array.isArray(metadata.tags) ? metadata.tags.join(", ") : "";
-  const authors = Array.isArray(metadata.authors) ? metadata.authors.join(", ") : "";
+  const tags = [
+    ...(Array.isArray(metadata.tags) ? metadata.tags : []),
+    ...(Array.isArray(metadata.authors) ? metadata.authors : []),
+    metadata.year,
+    metadata.venue
+  ]
+    .map((item) => String(item ?? "").trim())
+    .filter(Boolean);
+  const tagText = Array.from(new Set(tags)).join(", ");
+  const tldr = String(metadata.tldr ?? "");
 
   function updateMetadata(next: Partial<PaperMetadata>) {
-    onMetadataChange({ ...metadata, ...next });
+    const { authors: _authors, year: _year, venue: _venue, ...base } = metadata;
+    onMetadataChange({ ...base, ...next });
   }
 
   return (
     <section className="metadata-panel">
       <div className="metadata-heading">
         <div>
-          <span className="eyebrow">Metadata</span>
-          <h3>论文档案</h3>
+          <span className="eyebrow">文献信息</span>
+          <h3>资料卡片</h3>
         </div>
-        <span className="status-chip">{String(metadata.status ?? "Unread")}</span>
+        <span className="status-chip">{formatPaperStatus(metadata.status)}</span>
       </div>
       <label className="title-field">
         标题
@@ -35,44 +42,10 @@ export function PaperMetadataForm({ title, metadata, onTitleChange, onMetadataCh
       </label>
       <div className="metadata-grid">
         <label>
-          <span className="label-with-icon">
-            <Users size={14} />
-            作者
-          </span>
-          <input
-            value={authors}
-            onChange={(event) =>
-              updateMetadata({
-                authors: event.target.value
-                  .split(",")
-                  .map((item) => item.trim())
-                  .filter(Boolean)
-              })
-            }
-            placeholder="Ashish Vaswani, Noam Shazeer"
-          />
-        </label>
-        <label>
-          年份
-          <input
-            value={metadata.year ? String(metadata.year) : ""}
-            onChange={(event) =>
-              updateMetadata({
-                year: event.target.value ? Number(event.target.value) : null
-              })
-            }
-            inputMode="numeric"
-          />
-        </label>
-        <label>
-          会议 / 期刊
-          <input value={String(metadata.venue ?? "")} onChange={(event) => updateMetadata({ venue: event.target.value })} />
-        </label>
-        <label>
           状态
           <SelectField
             value={String(metadata.status ?? "Unread")}
-            options={statusSelectOptions}
+            options={paperStatusOptions}
             onChange={(status) => updateMetadata({ status })}
             ariaLabel="选择状态"
           />
@@ -83,7 +56,7 @@ export function PaperMetadataForm({ title, metadata, onTitleChange, onMetadataCh
             标签
           </span>
           <input
-            value={tags}
+            value={tagText}
             onChange={(event) =>
               updateMetadata({
                 tags: event.target.value
@@ -92,7 +65,19 @@ export function PaperMetadataForm({ title, metadata, onTitleChange, onMetadataCh
                   .filter(Boolean)
               })
             }
-            placeholder="Transformer, NLP"
+            placeholder="作者、会议、主题，用逗号分隔"
+          />
+        </label>
+        <label className="span-2">
+          <span className="label-with-icon">
+            <FileText size={14} />
+            TLDR
+          </span>
+          <textarea
+            className="rich-textarea"
+            value={tldr}
+            onChange={(event) => updateMetadata({ tldr: event.target.value })}
+            placeholder="用简短段落记录核心结论、方法贡献或待追踪问题。支持 Markdown 风格的简短标记。"
           />
         </label>
       </div>

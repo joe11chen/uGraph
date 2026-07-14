@@ -81,9 +81,9 @@ GET /api/projects/{project_id}/graph
           "id": "paper-id",
           "title": "Attention Is All You Need",
           "metadata": {
-            "year": 2017,
-            "venue": "NeurIPS",
-            "tags": ["Transformer"]
+            "status": "Read",
+            "tags": ["Vaswani", "NeurIPS", "Transformer"],
+            "tldr": "Transformer 用自注意力替代循环结构，成为后续大模型架构基础。"
           }
         }
       }
@@ -130,9 +130,9 @@ POST /api/projects/{project_id}/papers
 {
   "title": "Attention Is All You Need",
   "metadata": {
-    "year": 2017,
-    "venue": "NeurIPS",
-    "tags": ["Transformer"]
+    "status": "Unread",
+    "tags": ["Vaswani", "NeurIPS", "Transformer"],
+    "tldr": ""
   },
   "position": {
     "x": 100,
@@ -183,11 +183,9 @@ PUT /api/papers/{paper_id}
 {
   "title": "Attention Is All You Need",
   "metadata": {
-    "authors": ["Ashish Vaswani"],
-    "year": 2017,
-    "venue": "NeurIPS",
-    "tags": ["Transformer"],
-    "status": "Read"
+    "status": "Read",
+    "tags": ["Vaswani", "NeurIPS", "Transformer"],
+    "tldr": "提出纯 attention 的序列建模架构。"
   },
   "markdown_content": "# Notes\n...",
   "version": 1

@@ -62,11 +62,9 @@ metadata 当前不做强约束，使用 JSON 字符串保存，方便扩展。
 
 ```json
 {
-  "authors": [],
-  "year": null,
-  "venue": "",
   "tags": [],
   "status": "Unread",
+  "tldr": "",
   "nodeColor": "clay",
   "nodeShape": "rounded"
 }
@@ -76,6 +74,9 @@ metadata 当前不做强约束，使用 JSON 字符串保存，方便扩展。
 
 - `title`：唯一必填的论文展示名称。
 - `metadata_json`：用于图谱节点展示和 Markdown frontmatter 导出。
+- `metadata_json.tags`：统一保存作者、会议/期刊、主题和自定义短标签。
+- `metadata_json.status`：阅读状态。
+- `metadata_json.tldr`：TLDR 富文本/Markdown 风格短摘要。
 - `metadata_json.nodeColor`：图谱节点显示颜色，当前前端支持 `clay`、`ochre`、`olive`、`cinnabar`、`graphite`。
 - `metadata_json.nodeShape`：图谱节点显示形状，当前前端支持 `rounded`、`note`、`capsule`。
 - `markdown_content`：Markdown 正文内容。
@@ -206,13 +207,12 @@ attachments
 ---
 id: paper-uuid
 title: Attention Is All You Need
-authors:
-  - Ashish Vaswani
-year: 2017
-venue: NeurIPS
 tags:
+  - Vaswani
+  - NeurIPS
   - Transformer
 status: Read
+tldr: 提出纯 attention 的序列建模架构。
 ---
 
 # Attention Is All You Need

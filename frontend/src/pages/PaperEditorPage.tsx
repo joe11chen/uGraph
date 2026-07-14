@@ -75,7 +75,7 @@ export function PaperEditorPage() {
   const [noticeMessage, setNoticeMessage] = useState<string | null>(null);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isLeaveConfirmOpen, setLeaveConfirmOpen] = useState(false);
-  const [isOutlineCollapsed, setOutlineCollapsed] = useState(false);
+  const [isOutlineOpen, setOutlineOpen] = useState(false);
   const markdownEditorRef = useRef<MarkdownEditorHandle | null>(null);
 
   const clearNoticeMessage = useCallback(() => setNoticeMessage(null), []);
@@ -160,11 +160,11 @@ export function PaperEditorPage() {
   }
 
   if (paperQuery.isLoading) {
-    return <div className="page-state">正在载入论文...</div>;
+    return <div className="page-state">正在打开文献...</div>;
   }
 
   if (paperQuery.error || !paperQuery.data) {
-    return <div className="page-state error">论文不存在或加载失败</div>;
+    return <div className="page-state error">未找到这篇文献，或加载失败</div>;
   }
 
   return (
@@ -175,19 +175,19 @@ export function PaperEditorPage() {
             <FileText size={22} />
           </div>
           <div>
-            <span className="eyebrow">Paper Studio</span>
-            <h1>论文编辑</h1>
-            <p>{paperQuery.data.id}</p>
+            <span className="eyebrow">写作空间</span>
+            <h1>文献笔记</h1>
+            <p>{title || "未命名文献"}</p>
           </div>
         </div>
         <div className="toolbar">
           <button type="button" onClick={guardedBack}>
             <ArrowLeft size={17} />
-            返回图谱
+            返回工作台
           </button>
           <a className="button-link" href={paperMarkdownUrl(paperQuery.data.id)}>
             <Download size={17} />
-            导出单篇
+            导出本文
           </a>
           <button
             className="primary-action"
@@ -202,30 +202,34 @@ export function PaperEditorPage() {
       </header>
       <NoticeBanner message={noticeMessage} onDismiss={clearNoticeMessage} />
       <main className="editor-shell">
-        <div className={`editor-workspace${isOutlineCollapsed ? " outline-collapsed" : ""}`}>
-          <aside className="editor-outline" aria-label="论文目录">
+        <div className={`editor-workspace${isOutlineOpen ? " outline-open" : ""}`}>
+          <aside className="editor-outline" aria-label="文献目录">
             <button
               type="button"
               className="outline-toggle"
-              onClick={() => setOutlineCollapsed((current) => !current)}
-              aria-label={isOutlineCollapsed ? "展开目录" : "折叠目录"}
-              title={isOutlineCollapsed ? "展开目录" : "折叠目录"}
+              onClick={() => setOutlineOpen((current) => !current)}
+              aria-expanded={isOutlineOpen}
+              aria-label={isOutlineOpen ? "收起目录" : "展开目录"}
+              title={isOutlineOpen ? "收起目录" : "展开目录"}
             >
-              {isOutlineCollapsed ? <ChevronRight size={17} /> : <ChevronLeft size={17} />}
+              {isOutlineOpen ? <ChevronLeft size={17} /> : <ChevronRight size={17} />}
             </button>
             <div className="outline-heading">
               <ListTree size={17} />
               <span>目录</span>
             </div>
-            {!isOutlineCollapsed ? (
+            {isOutlineOpen ? (
               outlineItems.length > 0 ? (
-                <nav className="outline-list" aria-label="Markdown headings">
+                <nav className="outline-list" aria-label="文档标题">
                   {outlineItems.map((item) => (
                     <button
                       key={item.id}
                       type="button"
                       className={`outline-item level-${item.level}`}
-                      onClick={() => markdownEditorRef.current?.scrollToHeading(item)}
+                      onClick={() => {
+                        markdownEditorRef.current?.scrollToHeading(item);
+                        setOutlineOpen(false);
+                      }}
                     >
                       <span>{item.text}</span>
                     </button>
@@ -240,7 +244,7 @@ export function PaperEditorPage() {
             <div className="editor-hero">
               <div>
                 <span className={dirty ? "status-chip unsaved" : "status-chip"}>{dirty ? "未保存" : "已同步"}</span>
-                <h2>{title || "未命名论文"}</h2>
+                <h2>{title || "未命名文献"}</h2>
               </div>
               <div className="paper-metrics">
                 <div>
@@ -269,7 +273,7 @@ export function PaperEditorPage() {
                 setDirty(true);
               }}
             />
-            <section className="paper-editor-surface" aria-label="Markdown editor">
+            <section className="paper-editor-surface" aria-label="笔记编辑器">
               <MarkdownEditor
                 ref={markdownEditorRef}
                 value={markdown}
@@ -281,20 +285,20 @@ export function PaperEditorPage() {
             </section>
             <div className="editor-footer">
               <span>{dirty ? "当前内容尚未保存" : "当前编辑状态已同步"}</span>
-              <Link to="/">图谱首页</Link>
+              <Link to="/">返回工作台</Link>
             </div>
           </div>
         </div>
       </main>
       <ConfirmDialog
         open={isLeaveConfirmOpen}
-        title="确认返回图谱"
-        message="当前论文存在未保存内容，返回后这些修改不会被写入。"
-        confirmLabel="返回图谱"
+        title="确认返回工作台"
+        message="当前内容尚未保存，返回后这些修改不会被写入。"
+        confirmLabel="返回工作台"
         onCancel={cancelLeaveConfirm}
         onConfirm={confirmLeave}
       />
-      <AlertDialog open={Boolean(errorMessage)} title="操作失败" message={errorMessage ?? ""} onConfirm={clearErrorMessage} />
+      <AlertDialog open={Boolean(errorMessage)} title="未能完成操作" message={errorMessage ?? ""} onConfirm={clearErrorMessage} />
     </div>
   );
 }
