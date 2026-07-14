@@ -1,0 +1,11 @@
+node_modules/
+dist/
+.venv/
+__pycache__/
+*.pyc
+.env
+workspace/database/*.db
+workspace/database/*.db-*
+workspace/exports/*
+!workspace/exports/.gitkeep
+
