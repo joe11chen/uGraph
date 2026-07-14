@@ -58,17 +58,25 @@ Docker Compose：
 docker compose up --build
 ```
 
-前端：
+访问入口（容器内 nginx 统一提供）：
 
 ```text
-http://localhost:3000
+http://localhost
+https://localhost
 ```
 
-后端：
+API（经同域反向代理）：
 
 ```text
-http://localhost:8000
+https://localhost/api
+https://localhost/health
 ```
+
+部署说明：
+
+- `docker-compose.yml` 默认映射 `80:80` 和 `443:443`。
+- 可通过环境变量覆盖宿主机端口：`HTTP_PORT`、`HTTPS_PORT`。
+- HTTPS 证书文件需放在 `certs/origin.crt` 与 `certs/origin.key`。
 
 前端开发侧验证：
 

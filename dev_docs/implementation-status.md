@@ -148,23 +148,30 @@ backend/app/services/
 docker compose up --build
 ```
 
-前端：
+访问入口（容器内 nginx 统一提供）：
 
 ```text
-http://localhost:3000
+http://localhost
+https://localhost
 ```
 
-后端：
+API（经同域反向代理）：
 
 ```text
-http://localhost:8000
+https://localhost/api
 ```
 
 健康检查：
 
 ```text
-GET http://localhost:8000/health
+GET https://localhost/health
 ```
+
+Compose 端口与证书：
+
+- 默认映射 `80:80`、`443:443`。
+- 可通过 `HTTP_PORT`、`HTTPS_PORT` 覆盖宿主机端口。
+- HTTPS 证书文件路径：`certs/origin.crt`、`certs/origin.key`。
 
 ### 服务器公网部署
 
@@ -178,6 +185,12 @@ GET http://localhost:8000/health
 ```bash
 VITE_API_BASE_URL=/api
 CORS_ORIGINS=https://your-domain.com
+```
+
+若启用 `www`，可写为：
+
+```bash
+CORS_ORIGINS=https://your-domain.com,https://www.your-domain.com
 ```
 
 如果前后端分开域名，也可以把 `VITE_API_BASE_URL` 指向后端完整地址，例如 `https://api.your-domain.com/api`，同时把 `CORS_ORIGINS` 设置为前端站点来源。
