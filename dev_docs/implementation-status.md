@@ -166,6 +166,22 @@ http://localhost:8000
 GET http://localhost:8000/health
 ```
 
+### 服务器公网部署
+
+如果要通过自己的域名访问，推荐在反向代理后面部署，并把前后端放到同一个站点下：
+
+- 前端：`https://your-domain.com/`
+- 后端 API：`https://your-domain.com/api`
+
+此时建议设置：
+
+```bash
+VITE_API_BASE_URL=/api
+CORS_ORIGINS=https://your-domain.com
+```
+
+如果前后端分开域名，也可以把 `VITE_API_BASE_URL` 指向后端完整地址，例如 `https://api.your-domain.com/api`，同时把 `CORS_ORIGINS` 设置为前端站点来源。
+
 ### 本地开发
 
 后端：

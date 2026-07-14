@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app import models  # noqa: F401
 from app.api import canvas, export, papers, projects, relations
+from app.core.config import settings
 from app.core.database import Base, engine, ensure_database_schema, ensure_workspace
 from app.core.errors import register_exception_handlers
 
@@ -15,7 +16,7 @@ def create_app() -> FastAPI:
     app = FastAPI(title="Local Research Graph")
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+        allow_origins=settings.cors_origins_list,
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],

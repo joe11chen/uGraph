@@ -5,22 +5,18 @@ services:
     environment:
       WORKSPACE_PATH: /app/workspace
       DATABASE_URL: sqlite:////app/workspace/database/research_graph.db
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://ugraph.me,http://ugraph.me}
     volumes:
       - ./workspace:/app/workspace
-    ports:
-      - "8000:8000"
+    restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0 --port 3000"
-    environment:
-      CHOKIDAR_USEPOLLING: "true"
-      VITE_API_BASE_URL: http://localhost:8000/api
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-/api}
     ports:
-      - "3000:3000"
+      - "80:80"
     depends_on:
       - backend
+    restart: unless-stopped
