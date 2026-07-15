@@ -103,7 +103,12 @@ export function RelationLabelsDialog({ open, labels, onClose, onCreate, onUpdate
               return (
                 <div className="relation-label-row" key={label.id}>
                   <div className="relation-preview-pill" style={{ borderColor: draft.color }}>
-                    <span aria-hidden="true">{draft.emoji.trim() || fallbackEmoji}</span>
+                    <span className="relation-preview-emoji" aria-hidden="true">{draft.emoji.trim() || fallbackEmoji}</span>
+                    <span
+                      className={`relation-line-sample line-${draft.line_style}`}
+                      style={{ borderTopColor: draft.color }}
+                      aria-hidden="true"
+                    />
                     <strong>{previewName}</strong>
                   </div>
 
@@ -170,7 +175,15 @@ export function RelationLabelsDialog({ open, labels, onClose, onCreate, onUpdate
           <form className="relation-label-new" onSubmit={submitNew}>
             <div className="relation-label-new-head">
               <span className="eyebrow">新增类型</span>
-              <strong>添加关系类型</strong>
+              <div className="relation-preview-pill" style={{ borderColor: newDraft.color }}>
+                <span className="relation-preview-emoji" aria-hidden="true">{newDraft.emoji.trim() || fallbackEmoji}</span>
+                <span
+                  className={`relation-line-sample line-${newDraft.line_style}`}
+                  style={{ borderTopColor: newDraft.color }}
+                  aria-hidden="true"
+                />
+                <strong>{newDraft.name.trim() || "未命名"}</strong>
+              </div>
             </div>
 
             <label className="compact-field relation-emoji-field">

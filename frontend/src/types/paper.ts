@@ -1,9 +1,13 @@
+export type NodeColor = "clay" | "jade" | "ultramarine" | "indigo";
+export type LegacyNodeColor = "ochre" | "olive" | "cinnabar" | "graphite";
+export type NodeShape = "rounded" | "note" | "capsule";
+
 export type PaperMetadata = {
   tags?: string[];
   status?: string;
   tldr?: string;
-  nodeColor?: "clay" | "ochre" | "olive" | "cinnabar" | "graphite";
-  nodeShape?: "rounded" | "note" | "capsule";
+  nodeColor?: NodeColor | LegacyNodeColor;
+  nodeShape?: NodeShape;
   [key: string]: unknown;
 };
 

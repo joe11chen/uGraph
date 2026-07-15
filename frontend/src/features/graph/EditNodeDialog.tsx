@@ -1,12 +1,10 @@
 import { FormEvent, KeyboardEvent, useEffect, useState } from "react";
-import { Circle, FileText, Palette, Plus, Save, Square, Tags, X } from "lucide-react";
+import { FileText, Palette, Pill, Plus, Save, SquareRoundCorner, StickyNote, Tags, X } from "lucide-react";
 import { SelectField } from "../../components/SelectField";
-import type { Paper, PaperMetadata } from "../../types/paper";
+import type { NodeColor, NodeShape, Paper, PaperMetadata } from "../../types/paper";
 import type { IncomingRelationGroup, RelationLabel } from "../../types/relation";
 import { formatRelationName, paperStatusOptions } from "../../utils/labels";
-
-type NodeColor = NonNullable<PaperMetadata["nodeColor"]>;
-type NodeShape = NonNullable<PaperMetadata["nodeShape"]>;
+import { nodeColorOptions, nodeShapeOptions, normalizeNodeColor, normalizeNodeShape } from "./nodeStyles";
 
 type Props = {
   open: boolean;
@@ -20,33 +18,17 @@ type Props = {
   onSave: (payload: { title: string; metadata: PaperMetadata; relationGroups: IncomingRelationGroup[] }) => void;
 };
 
-const colorOptions: Array<{ value: NodeColor; label: string }> = [
-  { value: "clay", label: "陶土" },
-  { value: "ochre", label: "赭黄" },
-  { value: "olive", label: "橄榄" },
-  { value: "cinnabar", label: "朱砂" },
-  { value: "graphite", label: "石墨" }
-];
-
-const shapeOptions: Array<{ value: NodeShape; label: string }> = [
-  { value: "rounded", label: "圆角" },
-  { value: "note", label: "便签" },
-  { value: "capsule", label: "胶囊" }
-];
+const shapeIcons = {
+  rounded: SquareRoundCorner,
+  note: StickyNote,
+  capsule: Pill
+};
 
 function textToList(value: string): string[] {
   return value
     .split(",")
     .map((item) => item.trim())
     .filter(Boolean);
-}
-
-function normalizeColor(value: unknown): NodeColor {
-  return colorOptions.some((option) => option.value === value) ? (value as NodeColor) : "clay";
-}
-
-function normalizeShape(value: unknown): NodeShape {
-  return shapeOptions.some((option) => option.value === value) ? (value as NodeShape) : "rounded";
 }
 
 function mergedTagText(metadata: PaperMetadata): string {
@@ -96,8 +78,8 @@ export function EditNodeDialog({
     setStatus(String(paper.metadata.status ?? "Unread"));
     setTags(mergedTagText(paper.metadata));
     setTldr(String(paper.metadata.tldr ?? ""));
-    setNodeColor(normalizeColor(paper.metadata.nodeColor));
-    setNodeShape(normalizeShape(paper.metadata.nodeShape));
+    setNodeColor(normalizeNodeColor(paper.metadata.nodeColor));
+    setNodeShape(normalizeNodeShape(paper.metadata.nodeShape));
     setActiveTab("metadata");
   }, [paper]);
 
@@ -304,38 +286,54 @@ export function EditNodeDialog({
                       颜色
                     </legend>
                     <div className="swatch-row">
-                      {colorOptions.map((option) => (
+                      {nodeColorOptions.map((option) => (
                         <button
                           key={option.value}
                           type="button"
-                          className={`swatch-option node-color-${option.value}${nodeColor === option.value ? " selected" : ""}`}
+                          className={`swatch-option${nodeColor === option.value ? " selected" : ""}`}
                           onClick={() => setNodeColor(option.value)}
                           aria-pressed={nodeColor === option.value}
                         >
-                          <span aria-hidden="true" />
-                          {option.label}
+                          <span
+                            className={`node-style-preview node-color-${option.value} node-shape-${nodeShape}`}
+                            aria-hidden="true"
+                          >
+                            <span />
+                            <span />
+                          </span>
+                          <span>{option.label}</span>
                         </button>
                       ))}
                     </div>
                   </fieldset>
                   <fieldset>
                     <legend>
-                      <Square size={14} />
+                      <SquareRoundCorner size={14} />
                       形状
                     </legend>
                     <div className="shape-row">
-                      {shapeOptions.map((option) => (
-                        <button
-                          key={option.value}
-                          type="button"
-                          className={`shape-option node-shape-${option.value}${nodeShape === option.value ? " selected" : ""}`}
-                          onClick={() => setNodeShape(option.value)}
-                          aria-pressed={nodeShape === option.value}
-                        >
-                          {option.value === "capsule" ? <Circle size={14} /> : <Square size={14} />}
-                          {option.label}
-                        </button>
-                      ))}
+                      {nodeShapeOptions.map((option) => {
+                        const ShapeIcon = shapeIcons[option.value];
+                        return (
+                          <button
+                            key={option.value}
+                            type="button"
+                            className={`shape-option${nodeShape === option.value ? " selected" : ""}`}
+                            onClick={() => setNodeShape(option.value)}
+                            aria-pressed={nodeShape === option.value}
+                          >
+                            <ShapeIcon size={15} />
+                            <span
+                              className={`node-style-preview node-color-${nodeColor} node-shape-${option.value}`}
+                              aria-hidden="true"
+                            >
+                              <span />
+                              <span />
+                            </span>
+                            <span>{option.label}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </fieldset>
                 </div>
@@ -365,6 +363,11 @@ export function EditNodeDialog({
                           <strong>{edge.source?.title ?? edge.sourceId}</strong>
                         </span>
                         <span className="relation-label-pill" style={{ borderColor: edge.label?.color ?? undefined }}>
+                          <span
+                            className={`relation-line-sample line-${edge.label?.line_style ?? "solid"}`}
+                            style={{ borderTopColor: edge.label?.color ?? undefined }}
+                            aria-hidden="true"
+                          />
                           <span className="relation-emoji" aria-hidden="true">
                             {edge.label?.emoji ?? "🔗"}
                           </span>

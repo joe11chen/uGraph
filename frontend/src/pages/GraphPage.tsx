@@ -15,9 +15,9 @@ import {
   type ReactFlowInstance,
   useNodesState
 } from "@xyflow/react";
-import { Download, FilePlus2, FolderKanban, LocateFixed, Network, Save, Search, SlidersHorizontal, X } from "lucide-react";
+import { Download, FilePlus2, FolderKanban, LayoutDashboard, LocateFixed, Network, Save, Search, SlidersHorizontal, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { updateCanvasNodePosition } from "../api/canvas";
+import { updateCanvasLayout, updateCanvasNodePosition } from "../api/canvas";
 import { exportProjectMarkdown } from "../api/export";
 import { createPaper, deletePaper, getPaper, updatePaper } from "../api/papers";
 import { getDefaultProject, getProjectGraph } from "../api/projects";
@@ -27,6 +27,14 @@ import { NoticeBanner } from "../components/NoticeBanner";
 import { CreateNodeDialog } from "../features/graph/CreateNodeDialog";
 import { DeleteNodeDialog } from "../features/graph/DeleteNodeDialog";
 import { EditNodeDialog } from "../features/graph/EditNodeDialog";
+import {
+  defaultNodeHeight,
+  defaultNodeWidth,
+  getNodeCenter,
+  resolveEdgeRoute,
+  type EdgeRoute
+} from "../features/graph/edgeRouting";
+import { calculateGraphLayout, type LayoutPosition } from "../features/graph/graphLayout";
 import { PaperNode, type PaperNodeData } from "../features/graph/PaperNode";
 import { RelationLabelsDialog } from "../features/graph/RelationLabelsDialog";
 import type { PaperMetadata } from "../types/paper";
@@ -36,6 +44,12 @@ import { formatPaperStatus, formatRelationName } from "../utils/labels";
 
 const nodeTypes = { paper: PaperNode };
 const maxSearchResults = 8;
+
+type LayoutMutationPayload = {
+  canvasId: string;
+  nextPositions: LayoutPosition[];
+  previousPositions: Map<string, { x: number; y: number }>;
+};
 
 function lineStyleToDasharray(lineStyle: string): string | undefined {
   if (lineStyle === "dashed") {
@@ -76,9 +90,17 @@ export function GraphPage() {
   const [flowInstance, setFlowInstance] = useState<ReactFlowInstance<Node<PaperNodeData>, Edge> | null>(null);
   const suppressNextNodeClickRef = useRef(false);
   const [nodes, setNodes, onNodesChange] = useNodesState<Node<PaperNodeData>>([]);
+  const [edgeRoutes, setEdgeRoutes] = useState<Map<string, EdgeRoute>>(() => new Map());
 
   const clearNoticeMessage = useCallback(() => setNoticeMessage(null), []);
   const clearErrorMessage = useCallback(() => setErrorMessage(null), []);
+  const fitGraph = useCallback(() => {
+    window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => {
+        void flowInstance?.fitView({ padding: 0.18, duration: 420 });
+      });
+    });
+  }, [flowInstance]);
 
   const projectQuery = useQuery({
     queryKey: ["default-project"],
@@ -102,6 +124,8 @@ export function GraphPage() {
     graphQuery.data?.nodes.forEach((node) => mapping.set(node.paper_id, node.id));
     return mapping;
   }, [graphQuery.data]);
+
+  const nodeById = useMemo(() => new Map(nodes.map((node) => [node.id, node])), [nodes]);
 
   const editingPaperId = editingCanvasNodeId ? paperIdByCanvasNode.get(editingCanvasNodeId) : undefined;
 
@@ -163,6 +187,42 @@ export function GraphPage() {
     mutationFn: (payload: { canvasNodeId: string; x: number; y: number }) =>
       updateCanvasNodePosition(payload.canvasNodeId, payload.x, payload.y),
     onError: (error) => setErrorMessage(getErrorMessage(error, "布局保存失败"))
+  });
+
+  const layoutMutation = useMutation({
+    mutationFn: ({ canvasId, nextPositions }: LayoutMutationPayload) =>
+      updateCanvasLayout(
+        canvasId,
+        nextPositions.map((position) => ({
+          canvas_node_id: position.id,
+          x: position.x,
+          y: position.y
+        }))
+      ),
+    onMutate: ({ nextPositions }) => {
+      const nextById = new Map(nextPositions.map((position) => [position.id, position]));
+      setNodes((currentNodes) =>
+        currentNodes.map((node) => {
+          const nextPosition = nextById.get(node.id);
+          return nextPosition ? { ...node, position: { x: nextPosition.x, y: nextPosition.y } } : node;
+        })
+      );
+      fitGraph();
+    },
+    onSuccess: async () => {
+      setNoticeMessage("布局已整理并保存");
+      await queryClient.invalidateQueries({ queryKey: ["graph", projectQuery.data?.id] });
+    },
+    onError: (error, { previousPositions }) => {
+      setNodes((currentNodes) =>
+        currentNodes.map((node) => {
+          const previousPosition = previousPositions.get(node.id);
+          return previousPosition ? { ...node, position: previousPosition } : node;
+        })
+      );
+      fitGraph();
+      setErrorMessage(getErrorMessage(error, "布局整理失败，已恢复原位置"));
+    }
   });
 
   const exportMutation = useMutation({
@@ -245,17 +305,22 @@ export function GraphPage() {
         return;
       }
 
-      const currentNode = nodes.find((node) => node.id === canvasNodeId);
-      const position = currentNode?.position ?? graphNode.position;
+      const currentNode = nodeById.get(canvasNodeId);
+      const center = currentNode
+        ? getNodeCenter(currentNode)
+        : {
+            x: graphNode.position.x + defaultNodeWidth / 2,
+            y: graphNode.position.y + defaultNodeHeight / 2
+          };
       setExpandedNodeId(canvasNodeId);
       window.requestAnimationFrame(() => {
-        void flowInstance?.setCenter(position.x + 110, position.y + 48, {
+        void flowInstance?.setCenter(center.x, center.y, {
           zoom: 1.08,
           duration: 420
         });
       });
     },
-    [flowInstance, graphQuery.data, nodes]
+    [flowInstance, graphQuery.data, nodeById]
   );
 
   const requestDeleteNode = useCallback(
@@ -286,11 +351,37 @@ export function GraphPage() {
           onEdit: openNodeEditor,
           onDelete: requestDeleteNode
         },
-        draggable: true,
         selectable: true
       })) ?? [],
     [graphQuery.data, openNodeEditor, requestDeleteNode]
   );
+
+  useEffect(() => {
+    setEdgeRoutes((currentRoutes) => {
+      const nextRoutes = new Map<string, EdgeRoute>();
+      graphQuery.data?.edges.forEach((edge) => {
+        const sourceId = canvasNodeIdByPaper.get(edge.source_paper_id);
+        const targetId = canvasNodeIdByPaper.get(edge.target_paper_id);
+        const sourceNode = sourceId ? nodeById.get(sourceId) : undefined;
+        const targetNode = targetId ? nodeById.get(targetId) : undefined;
+        if (sourceNode && targetNode) {
+          nextRoutes.set(edge.id, resolveEdgeRoute(sourceNode, targetNode, currentRoutes.get(edge.id)));
+        }
+      });
+
+      const hasChanged =
+        currentRoutes.size !== nextRoutes.size ||
+        Array.from(nextRoutes).some(([edgeId, nextRoute]) => {
+          const currentRoute = currentRoutes.get(edgeId);
+          return (
+            currentRoute?.axis !== nextRoute.axis ||
+            currentRoute?.sourceHandle !== nextRoute.sourceHandle ||
+            currentRoute?.targetHandle !== nextRoute.targetHandle
+          );
+        });
+      return hasChanged ? nextRoutes : currentRoutes;
+    });
+  }, [canvasNodeIdByPaper, graphQuery.data?.edges, nodeById]);
 
   const graphEdges = useMemo<Edge[]>(
     () => {
@@ -302,11 +393,18 @@ export function GraphPage() {
         if (!source || !target || !label) {
           return [];
         }
+        const sourceNode = nodeById.get(source);
+        const targetNode = nodeById.get(target);
+        const route =
+          edgeRoutes.get(edge.id) ??
+          (sourceNode && targetNode ? resolveEdgeRoute(sourceNode, targetNode) : undefined);
         return [
           {
             id: edge.id,
             source,
             target,
+            sourceHandle: route?.sourceHandle,
+            targetHandle: route?.targetHandle,
             label: `${label.emoji} ${formatRelationName(label.name)}`,
             type: "smoothstep",
             markerEnd: { type: MarkerType.ArrowClosed, color: label.color },
@@ -316,13 +414,13 @@ export function GraphPage() {
               strokeDasharray: lineStyleToDasharray(label.line_style)
             },
             labelStyle: {
-              fill: "#4e483e",
+              fill: "var(--ink)",
               fontFamily: "Segoe UI, sans-serif",
               fontSize: 11,
               fontWeight: 800
             },
             labelBgStyle: {
-              fill: "#fbfaf6",
+              fill: "var(--paper)",
               fillOpacity: 0.86
             },
             labelBgPadding: [6, 3],
@@ -331,8 +429,27 @@ export function GraphPage() {
         ];
       }) ?? [];
     },
-    [canvasNodeIdByPaper, graphQuery.data]
+    [canvasNodeIdByPaper, edgeRoutes, graphQuery.data, nodeById]
   );
+
+  const canArrangeGraph = Boolean(graphQuery.data?.canvas.id) &&
+    nodes.length > 0 &&
+    !isDraggingNode &&
+    !positionMutation.isPending &&
+    !layoutMutation.isPending;
+
+  const arrangeGraph = useCallback(() => {
+    const canvasId = graphQuery.data?.canvas.id;
+    if (!canvasId || !canArrangeGraph) {
+      return;
+    }
+
+    layoutMutation.mutate({
+      canvasId,
+      nextPositions: calculateGraphLayout(nodes, graphEdges),
+      previousPositions: new Map(nodes.map((node) => [node.id, { ...node.position }]))
+    });
+  }, [canArrangeGraph, graphEdges, graphQuery.data?.canvas.id, layoutMutation, nodes]);
 
   useEffect(() => {
     setNodes((currentNodes) => {
@@ -353,27 +470,17 @@ export function GraphPage() {
     });
   }, [expandedNodeId, graphNodesFromData, setNodes]);
 
-  useEffect(() => {
-    setNodes((currentNodes) =>
-      currentNodes.map((node) => ({
-        ...node,
-        data: {
-          ...node.data,
-          expanded: node.id === expandedNodeId
-        }
-      }))
-    );
-  }, [expandedNodeId, setNodes]);
-
   const onNodeDragStop: OnNodeDrag<Node<PaperNodeData>> = useCallback(
     (_event, node) => {
       setDraggingNode(false);
       window.setTimeout(() => {
         suppressNextNodeClickRef.current = false;
       }, 0);
-      positionMutation.mutate({ canvasNodeId: node.id, x: node.position.x, y: node.position.y });
+      if (!layoutMutation.isPending) {
+        positionMutation.mutate({ canvasNodeId: node.id, x: node.position.x, y: node.position.y });
+      }
     },
-    [positionMutation]
+    [layoutMutation.isPending, positionMutation]
   );
 
   const onNodeDragStart: OnNodeDrag<Node<PaperNodeData>> = useCallback(() => {
@@ -460,9 +567,18 @@ export function GraphPage() {
               <span>已归类</span>
             </div>
           </div>
+          <button
+            type="button"
+            className="graph-layout-action"
+            onClick={arrangeGraph}
+            disabled={!canArrangeGraph}
+          >
+            <LayoutDashboard size={16} />
+            {layoutMutation.isPending ? "整理中" : "整理布局"}
+          </button>
           <div className="panel-tip">
             <Save size={16} />
-            <span>布局已保存</span>
+            <span>{positionMutation.isPending || layoutMutation.isPending ? "保存布局中" : "拖动节点后自动保存"}</span>
           </div>
           <div className="graph-search">
             <label htmlFor="graph-node-search">
@@ -527,6 +643,7 @@ export function GraphPage() {
           nodes={nodes}
           edges={graphEdges}
           nodeTypes={nodeTypes}
+          nodesDraggable={!layoutMutation.isPending}
           onNodesChange={(changes: NodeChange<Node<PaperNodeData>>[]) => {
             if (changes.some((change) => change.type === "position" && change.dragging)) {
               setDraggingNode(true);

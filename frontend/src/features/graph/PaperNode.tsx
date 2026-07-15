@@ -5,6 +5,8 @@ import type { CSSProperties } from "react";
 import type { MouseEvent } from "react";
 import type { PaperMetadata } from "../../types/paper";
 import { formatPaperStatus } from "../../utils/labels";
+import { nodeHandleSides, sourceHandleBySide, targetHandleBySide, type NodeHandleSide } from "./edgeRouting";
+import { getRenderedNodeColor, normalizeNodeShape } from "./nodeStyles";
 
 export type PaperNodeData = {
   [key: string]: unknown;
@@ -16,8 +18,12 @@ export type PaperNodeData = {
   onDelete?: (canvasNodeId: string) => void;
 };
 
-const colorClasses = new Set(["clay", "ochre", "olive", "cinnabar", "graphite"]);
-const shapeClasses = new Set(["rounded", "note", "capsule"]);
+const handlePositionBySide: Record<NodeHandleSide, Position> = {
+  top: Position.Top,
+  right: Position.Right,
+  bottom: Position.Bottom,
+  left: Position.Left
+};
 
 function stringifyList(value: unknown): string[] {
   return Array.isArray(value) ? value.map((item) => String(item)).filter(Boolean) : [];
@@ -37,8 +43,8 @@ export function PaperNode({ data }: NodeProps) {
   const tags = stringifyList(metadata.tags);
   const tldr = String(metadata.tldr ?? "").trim();
   const status = formatPaperStatus(metadata.status);
-  const color = colorClasses.has(String(metadata.nodeColor)) ? String(metadata.nodeColor) : "clay";
-  const shape = shapeClasses.has(String(metadata.nodeShape)) ? String(metadata.nodeShape) : "rounded";
+  const color = getRenderedNodeColor(metadata.nodeColor);
+  const shape = normalizeNodeShape(metadata.nodeShape);
   const hasExpandedMetadata = Boolean(tldr) || tags.length > 0;
   const isExpanded = Boolean(nodeData.expanded);
 
@@ -59,7 +65,24 @@ export function PaperNode({ data }: NodeProps) {
 
   return (
     <div className={className} style={nodeStyle}>
-      <Handle type="target" position={Position.Left} />
+      {nodeHandleSides.flatMap((side) => [
+        <Handle
+          key={targetHandleBySide[side]}
+          id={targetHandleBySide[side]}
+          className="paper-node-handle"
+          type="target"
+          position={handlePositionBySide[side]}
+          isConnectable={false}
+        />,
+        <Handle
+          key={sourceHandleBySide[side]}
+          id={sourceHandleBySide[side]}
+          className="paper-node-handle"
+          type="source"
+          position={handlePositionBySide[side]}
+          isConnectable={false}
+        />
+      ])}
       {isExpanded ? (
         <div className="node-action-menu" aria-label="文献操作" onPointerDown={(event) => event.stopPropagation()}>
           <button
@@ -110,7 +133,6 @@ export function PaperNode({ data }: NodeProps) {
           ) : null}
         </div>
       ) : null}
-      <Handle type="source" position={Position.Right} />
     </div>
   );
 }

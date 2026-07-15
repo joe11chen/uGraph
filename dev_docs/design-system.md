@@ -213,6 +213,7 @@ The brand block identifies the workspace; the toolbar contains immediate page ac
 - A compact topbar.
 - Full remaining viewport for React Flow.
 - A floating overview/search panel, up to roughly 320px wide.
+- An explicit “整理布局” action in that panel; layout never runs automatically on load.
 - Visible React Flow controls and minimap.
 - A lightweight empty state when there are no papers.
 
@@ -320,13 +321,14 @@ Current width bounds are content-sensitive:
 
 ### Node colors and shapes
 
-**Implemented.** Current node colors:
+**Implemented.** Current selectable node colors use a fixed, validated graph-data palette:
 
-- `clay`
-- `ochre`
-- `olive`
-- `cinnabar`
-- `graphite`
+- `clay` — 陶土 `#eb6834`
+- `jade` — 青玉 `#199e70`
+- `ultramarine` — 群青 `#2a78d6`
+- `indigo` — 靛青 `#4a3aa7`
+
+The set is validated on the node surface with all color pairs considered. Existing metadata values `ochre`, `olive`, `cinnabar`, and `graphite` remain render-compatible; opening and saving their style normalizes them to a current selectable value.
 
 Current shapes:
 
@@ -334,7 +336,7 @@ Current shapes:
 - `note`
 - `capsule`
 
-Color and shape are user-configurable metadata. Maintain a readable title/status contrast in every combination. If a new color or shape is introduced, update TypeScript types/options, CSS recipes, documentation, and fallback behavior together.
+Color and shape are user-configurable metadata. The style picker previews the actual paper wash, border, fold/capsule geometry, and the current color/shape combination rather than an abstract flat swatch. Text labels and `aria-pressed` remain present so the choice is not communicated by color or icon alone. Maintain readable title/status contrast in every combination. If a new color or shape is introduced, update TypeScript types/options, CSS recipes, documentation, and fallback behavior together.
 
 ### Edges
 
@@ -347,8 +349,9 @@ Color and shape are user-configurable metadata. Maintain a readable title/status
 - User-configurable color.
 - Label composed of relation emoji plus localized name.
 - Compact sans label on a translucent paper background.
+- Source and target attachment sides selected from the nodes’ current measured centers; the relation direction and arrow meaning never reverse.
 
-Relation color is data encoding and is exempt from the interface-chrome accent restriction. Preserve emoji/text/line-style cues so meaning is not carried by color alone.
+Relation management and incoming-relation pills preview the configured solid, dashed, or dotted line together with color, emoji, and text. Relation color is data encoding and is exempt from the interface-chrome accent restriction. Preserve all of these cues so meaning is not carried by color alone.
 
 ## Markdown and writing experience
 

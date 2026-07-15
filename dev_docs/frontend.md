@@ -24,7 +24,8 @@
 主要职责：
 
 - 加载默认 project 和完整 graph payload。
-- 展示论文节点、关系边和 relation-label 样式。
+- 展示论文节点、关系边和 relation-label 样式，并按节点相对位置选择边的连接侧。
+- 提供显式的一键分层整理布局，并通过 canvas batch layout endpoint 保存。
 - 新建、快速编辑和删除论文节点。
 - 编辑指向当前节点的 incoming relations。
 - 维护项目级 relation labels。
@@ -87,6 +88,8 @@ Relation endpoints = Paper.id
 - 单击节点切换展开状态，点击画布空白处收起。
 - 拖动节点不会展开节点。
 - 双击节点按 paper ID 进入独立编辑页。
+- 每个节点固定提供上下左右四组 source/target handle；`GraphPage` 使用当前受控节点的位置和 measured 尺寸为每条边选择端口，不改变 relation 的 source/target 方向。
+- 搜索定位同样使用 measured 节点中心，不依赖固定节点宽高。
 
 ### 客户端搜索
 
@@ -124,13 +127,16 @@ incoming relations
 
 ### 画布持久化
 
-当前前端只使用：
+前端使用两条位置保存路径：
 
 ```text
 PATCH /api/canvas-nodes/{canvas_node_id}
+PATCH /api/canvases/{canvas_id}/nodes/layout
 ```
 
-拖动期间只更新本地 React Flow state，`onNodeDragStop` 后保存 x/y。后端 batch layout 和 viewport endpoints 没有 frontend wrapper/caller，返回的 canvas viewport 也没有恢复；React Flow 当前使用 `fitView`。
+普通拖动期间只更新本地 React Flow state，`onNodeDragStop` 后保存单节点 x/y。“整理布局”由用户显式触发：前端基于当前 measured 节点尺寸和有向边运行确定性的左到右分层布局；强连通分量用于处理环，断开分量分组排列。布局结果先乐观更新全部节点，再通过 batch endpoint 一次保存。保存期间禁止拖动；失败时按 canvas node ID 恢复旧位置并重新 `fitView`，成功时刷新 graph query。
+
+viewport endpoint 仍没有 frontend wrapper/caller，返回的 canvas viewport 也没有恢复；React Flow 初次加载仍使用 `fitView`。
 
 ## PaperEditorPage
 
@@ -212,7 +218,7 @@ type PaperMetadata = {
 - `createPaper`、`getPaper`、`updatePaper`、`deletePaper`。
 - `getIncomingRelations`、`updateIncomingRelations`。
 - relation-label create/update/delete。
-- `updateCanvasNodePosition`。
+- `updateCanvasNodePosition`、`updateCanvasLayout`。
 - `exportProjectMarkdown`。
 
 ### 本地状态
