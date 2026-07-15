@@ -45,7 +45,7 @@ Stable changes:
 - Added a collapsible left outline sidebar to the paper editor page.
 - The outline is generated locally from Markdown H1/H2/H3 headings.
 - Clicking an outline item scrolls the Vditor editor to the matching rendered heading.
-- On narrow screens the outline stacks above the editor instead of compressing the writing surface.
+- On narrow screens the outline remains a fixed, collapsible floating panel; its offsets and maximum height adapt without compressing the writing surface.
 
 Primary files:
 
@@ -96,7 +96,7 @@ Status: completed.
 
 Stable changes:
 
-- Expanded paper editor shell surfaces from 1360px to 1680px on wide screens.
+- Expanded the paper editor workspace to a current maximum width of 2480px on wide screens.
 - Overrode Vditor WYSIWYG / IR / SV content nodes, including `.vditor-wysiwyg > .vditor-reset`, so Markdown content can use a wider writing area instead of staying near A4 width.
 - Kept the editing content centered with responsive padding.
 
@@ -180,7 +180,7 @@ Stable changes:
 - Vditor runtime assets are served locally from `/vditor`.
 - Added safe Vditor cleanup for React 19 development StrictMode.
 - Added textarea fallback if Vditor initialization fails.
-- Updated Docker Compose so frontend installs dependencies before Vite startup.
+- Docker Compose builds the frontend in a Node 22 stage with `npm ci` and `npm run build`, then serves the static output through nginx; Compose does not start Vite.
 
 Primary files:
 

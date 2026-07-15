@@ -2,13 +2,15 @@
 
 ## 通用约定
 
-Base URL:
+Base URL：
 
 ```text
 /api
 ```
 
-响应格式：
+`GET /health` 不使用 `/api` prefix。
+
+大多数 JSON 成功响应使用：
 
 ```json
 {
@@ -16,7 +18,26 @@ Base URL:
 }
 ```
 
-错误格式：
+例外：
+
+- `GET /health` 返回 `{"status":"ok"}`。
+- 单篇 Markdown export 返回原始 `text/markdown`。
+- 204 endpoint 没有响应体。
+
+## 状态码总览
+
+| Endpoint 类型 | 当前成功状态 | 响应 |
+| --- | ---: | --- |
+| GET JSON | 200 | `{"data": ...}`，health 除外 |
+| POST create/export | 200 | `{"data": ...}`；当前未显式配置 201 |
+| PUT update/replace | 200 | `{"data": ...}` |
+| DELETE paper/relation label | 204 | 无 body |
+| PATCH canvas node/layout/viewport | 204 | 无 body |
+| GET paper Markdown | 200 | `text/markdown` attachment |
+
+## 错误格式
+
+业务代码显式抛出的 `AppError` 使用：
 
 ```json
 {
@@ -28,6 +49,37 @@ Base URL:
 }
 ```
 
+这不是所有错误的统一格式：
+
+- FastAPI/Pydantic 请求校验错误使用标准 422 `{"detail": [...]}`。
+- 未捕获的数据库、文件系统或程序异常不保证转换为业务 error envelope。
+
+`Paper.version` 冲突返回 409：
+
+```json
+{
+  "error": {
+    "code": "VERSION_CONFLICT",
+    "message": "Paper has been updated elsewhere",
+    "details": {
+      "current_version": 2
+    }
+  }
+}
+```
+
+## 健康检查
+
+```text
+GET /health
+```
+
+响应：
+
+```json
+{"status":"ok"}
+```
+
 ## 默认项目
 
 ### 获取默认项目
@@ -36,7 +88,12 @@ Base URL:
 GET /api/projects/default
 ```
 
-如果默认项目不存在，后端会自动创建。
+如果数据库中没有 project，该 GET 会创建：
+
+- `Default Project`。
+- 该 project 的 `Main` canvas。
+
+因此该读取 endpoint 可能产生数据库写入。
 
 响应：
 
@@ -54,11 +111,13 @@ GET /api/projects/default
 
 ## 图谱页面数据
 
-### 获取默认画布完整数据
+### 获取 project graph
 
 ```text
 GET /api/projects/{project_id}/graph
 ```
+
+该 endpoint 组合返回 project、默认 canvas、canvas nodes/paper summaries、relations 和 relation labels。如果 project 尚无 canvas 或 relation labels，读取过程会惰性创建它们。
 
 响应：
 
@@ -76,14 +135,14 @@ GET /api/projects/{project_id}/graph
       {
         "id": "canvas-node-id",
         "paper_id": "paper-id",
-        "position": { "x": 120, "y": 80 },
+        "position": {"x": 120, "y": 80},
         "paper": {
           "id": "paper-id",
           "title": "Attention Is All You Need",
           "metadata": {
             "status": "Read",
             "tags": ["Vaswani", "NeurIPS", "Transformer"],
-            "tldr": "Transformer 用自注意力替代循环结构，成为后续大模型架构基础。"
+            "tldr": "Transformer 用自注意力替代循环结构。"
           }
         }
       }
@@ -99,22 +158,12 @@ GET /api/projects/{project_id}/graph
         "updated_at": "..."
       }
     ],
-    "relation_labels": [
-      {
-        "id": "label-id",
-        "project_id": "project-id",
-        "name": "Cites",
-        "emoji": "📎",
-        "color": "#8b5e3c",
-        "line_style": "solid",
-        "sort_order": 10,
-        "created_at": "...",
-        "updated_at": "..."
-      }
-    ]
+    "relation_labels": []
   }
 }
 ```
+
+注意：node `id` 是 CanvasNode ID，relation source/target 是 Paper ID。
 
 ## 论文节点
 
@@ -131,7 +180,7 @@ POST /api/projects/{project_id}/papers
   "title": "Attention Is All You Need",
   "metadata": {
     "status": "Unread",
-    "tags": ["Vaswani", "NeurIPS", "Transformer"],
+    "tags": ["Vaswani", "Transformer"],
     "tldr": ""
   },
   "position": {
@@ -141,20 +190,19 @@ POST /api/projects/{project_id}/papers
 }
 ```
 
-规则：
+行为：
 
-- `title` 必填。
-- `metadata` 可选。
-- `position` 可选，未传时后端或前端给默认位置。
-- 创建 paper 后，同时创建默认 canvas node。
+- `title` trim 后不能为空。
+- `metadata` 和 `position` 可选。
+- 后端未收到 position 时使用 `x=0, y=0`；当前创建弹窗通常显式发送默认位置。
+- 在默认 canvas 中同时创建一个 CanvasNode。
+- 成功返回 200 和完整 Paper 数据。
 
 ### 获取论文详情
 
 ```text
 GET /api/papers/{paper_id}
 ```
-
-响应：
 
 ```json
 {
@@ -184,7 +232,7 @@ PUT /api/papers/{paper_id}
   "title": "Attention Is All You Need",
   "metadata": {
     "status": "Read",
-    "tags": ["Vaswani", "NeurIPS", "Transformer"],
+    "tags": ["Vaswani", "Transformer"],
     "tldr": "提出纯 attention 的序列建模架构。"
   },
   "markdown_content": "# Notes\n...",
@@ -192,11 +240,11 @@ PUT /api/papers/{paper_id}
 }
 ```
 
-规则：
+行为：
 
-- `title` 不能为空。
-- 如果 `version` 与数据库不一致，返回 `VERSION_CONFLICT`。
-- 成功保存后 `version + 1`。
+- `title` trim 后不能为空。
+- `version` 必须与数据库当前值完全一致，否则返回 `VERSION_CONFLICT` 409。
+- 成功后 `version += 1`，提交并返回更新后的 Paper。
 
 ### 删除论文
 
@@ -204,11 +252,18 @@ PUT /api/papers/{paper_id}
 DELETE /api/papers/{paper_id}
 ```
 
-删除时同步清理对应 `canvas_nodes` 和相关 `relations`。
+成功返回 204。数据库外键/ORM cascade 会清理相关 CanvasNode 和 incoming/outgoing relations。
 
 ## 关系标签
 
-关系标签是项目级配置，用于定义边的名称和显示样式。
+关系标签是 project 级配置。首次读取一个没有任何标签的 project 时，会创建：
+
+| name | emoji | color | line_style | sort_order |
+| --- | --- | --- | --- | ---: |
+| 引用 | 📎 | `#8b5e3c` | solid | 10 |
+| 延伸 | 🧱 | `#b8653f` | solid | 20 |
+| 使用方法 | 🛠️ | `#66763f` | dashed | 30 |
+| 对比 | ⚖️ | `#3f3a33` | dotted | 40 |
 
 ### 获取关系标签
 
@@ -216,7 +271,7 @@ DELETE /api/papers/{paper_id}
 GET /api/projects/{project_id}/relation-labels
 ```
 
-首次读取时会为项目创建默认标签。
+该 GET 可能创建上述默认标签并提交。
 
 ### 创建关系标签
 
@@ -224,11 +279,9 @@ GET /api/projects/{project_id}/relation-labels
 POST /api/projects/{project_id}/relation-labels
 ```
 
-请求：
-
 ```json
 {
-  "name": "Cites",
+  "name": "引用",
   "emoji": "📎",
   "color": "#8b5e3c",
   "line_style": "solid",
@@ -238,10 +291,11 @@ POST /api/projects/{project_id}/relation-labels
 
 规则：
 
-- `name` 必填。
-- `emoji` 可配置，用于图上边 label 和关系编辑界面。
-- 同一 project 下 `name` 唯一。
-- `line_style` 支持 `solid`、`dashed`、`dotted`。
+- name trim 后不能为空，同一 project 内唯一。
+- emoji trim 后最多保留 16 个字符；空值归一化为 `🔗`。
+- `solid`、`dashed`、`dotted` 是受支持的 line style。
+- 其他 line style 当前不会报错，而会静默归一化为 `solid`。
+- 成功返回 200，不是 201。
 
 ### 更新关系标签
 
@@ -249,7 +303,7 @@ POST /api/projects/{project_id}/relation-labels
 PUT /api/relation-labels/{label_id}
 ```
 
-请求同创建关系标签。
+请求和归一化规则与创建相同，成功返回 200。
 
 ### 删除关系标签
 
@@ -257,19 +311,24 @@ PUT /api/relation-labels/{label_id}
 DELETE /api/relation-labels/{label_id}
 ```
 
-删除标签时同步清理使用该标签的关系边。
+成功返回 204；使用该 label 的 relations 会级联删除。
 
 ## 节点入边关系
 
-前端在节点编辑弹窗里维护“指向当前节点的关系”。界面只展示已存在关系和一行空白添加器，不预铺所有 label。后端会将这些分组替换为 `relations` 表中的有向边。
+前端维护“指向当前 paper 的关系”。
 
-### 获取节点入边关系
+```ts
+type IncomingRelationGroup = {
+  label_id: string;
+  source_paper_ids: string[];
+};
+```
+
+### 获取节点入边
 
 ```text
 GET /api/papers/{paper_id}/incoming-relations
 ```
-
-响应：
 
 ```json
 {
@@ -285,13 +344,11 @@ GET /api/papers/{paper_id}/incoming-relations
 }
 ```
 
-### 替换节点入边关系
+### 全量替换节点入边
 
 ```text
 PUT /api/papers/{paper_id}/incoming-relations
 ```
-
-请求：
 
 ```json
 {
@@ -306,27 +363,25 @@ PUT /api/papers/{paper_id}/incoming-relations
 
 规则：
 
-- 该接口是 replace 语义，会先删除当前 paper 的所有入边，再写入请求中的分组。
+- 先验证所有 label/source，再删除 target paper 的现有全部入边并插入请求内容。
 - 不允许 self-loop。
-- label 和 source paper 必须属于 target paper 所在 project。
-- 同一组内重复 source 会被去重。
+- label、source 和 target 必须属于同一 project。
+- 重复 `(label_id, source_paper_id)` 会去重。
+- 单个后端调用内部提交；但它不与前端在此之前执行的 paper PUT 构成跨请求事务。
 
 ## 画布
 
-### 更新节点位置
+### 更新单节点位置
 
 ```text
 PATCH /api/canvas-nodes/{canvas_node_id}
 ```
 
-请求：
-
 ```json
-{
-  "x": 220,
-  "y": 180
-}
+{"x": 220, "y": 180}
 ```
+
+成功返回 204。当前前端使用该 endpoint。
 
 ### 批量更新节点位置
 
@@ -334,16 +389,16 @@ PATCH /api/canvas-nodes/{canvas_node_id}
 PATCH /api/canvases/{canvas_id}/nodes/layout
 ```
 
-请求：
-
 ```json
 {
   "nodes": [
-    { "canvas_node_id": "node-1", "x": 100, "y": 100 },
-    { "canvas_node_id": "node-2", "x": 300, "y": 180 }
+    {"canvas_node_id": "node-1", "x": 100, "y": 100},
+    {"canvas_node_id": "node-2", "x": 300, "y": 180}
   ]
 }
 ```
+
+成功返回 204。payload 中不存在或不属于该 canvas 的 node ID 会被忽略，不会使整个请求失败。当前前端未调用该 endpoint。
 
 ### 保存视口
 
@@ -351,17 +406,11 @@ PATCH /api/canvases/{canvas_id}/nodes/layout
 PATCH /api/canvases/{canvas_id}/viewport
 ```
 
-请求：
-
 ```json
-{
-  "viewport_x": 0,
-  "viewport_y": 0,
-  "zoom": 1
-}
+{"viewport_x": 0, "viewport_y": 0, "zoom": 1}
 ```
 
-当前前端主要使用单节点位置保存接口；批量布局和视口保存接口已在后端提供，作为后续增强预留。
+成功返回 204。当前前端未调用，也未恢复 graph response 中的 viewport。
 
 ## Markdown 导出
 
@@ -371,20 +420,18 @@ PATCH /api/canvases/{canvas_id}/viewport
 GET /api/papers/{paper_id}/export/markdown
 ```
 
-响应可以是文件下载：
+响应：
 
 ```text
-Content-Type: text/markdown
-Content-Disposition: attachment; filename="attention-is-all-you-need.md"
+Content-Type: text/markdown; charset=utf-8
+Content-Disposition: attachment; filename="<paper-slug>.md"
 ```
 
-### 导出全项目 Markdown
+### 导出项目 Markdown 快照
 
 ```text
 POST /api/projects/{project_id}/export/markdown
 ```
-
-响应：
 
 ```json
 {
@@ -394,18 +441,26 @@ POST /api/projects/{project_id}/export/markdown
 }
 ```
 
-导出目录：
+后端写入：
 
 ```text
-exports/
-  default-project-20260711-150000/
-    graph.md
-    papers/
-      paper-id-1.md
-      paper-id-2.md
+workspace/
+  exports/
+    default-project-YYYYMMDD-HHMMSS/
+      graph.md
+      papers/
+        <paper-id>-<slug>.md
 ```
 
-## 当前已实现路由清单
+语义：
+
+- `export_path` 是相对服务器 `workspace/` 的路径。
+- endpoint 不返回 ZIP，也不会把目录下载到浏览器。
+- `graph.md` 只列 paper Markdown links。
+- relations、relation labels、canvas nodes/layout 和 viewport 不会导出。
+- 这是有损阅读快照，不是可恢复备份或后续 T13 的版本化 JSON 格式。
+
+## 当前路由清单
 
 ```text
 GET    /health
